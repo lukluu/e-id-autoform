@@ -77,18 +77,22 @@ export function similarity(a: string, b: string): number {
   const t = b.toUpperCase();
   if (s === t) return 1;
   if (!s.length || !t.length) return 0;
-  const d: number[][] = Array.from({ length: s.length + 1 }, () =>
-    new Array<number>(t.length + 1).fill(0),
-  );
-  for (let i = 0; i <= s.length; i++) d[i][0] = i;
-  for (let j = 0; j <= t.length; j++) d[0][j] = j;
+  const w = t.length + 1;
+  const d = new Uint32Array((s.length + 1) * w);
+  for (let i = 0; i <= s.length; i++) d[i * w] = i;
+  for (let j = 0; j <= t.length; j++) d[j] = j;
   for (let i = 1; i <= s.length; i++) {
     for (let j = 1; j <= t.length; j++) {
       const cost = s[i - 1] === t[j - 1] ? 0 : 1;
-      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      d[i * w + j] = Math.min(
+        d[(i - 1) * w + j]! + 1,
+        d[i * w + j - 1]! + 1,
+        d[(i - 1) * w + j - 1]! + cost,
+      );
     }
   }
-  return 1 - d[s.length][t.length] / Math.max(s.length, t.length);
+  return 1 - d[s.length * w + t.length]! / Math.max(s.length, t.length);
+
 }
 
 /** Cocokkan sebuah nilai ke daftar opsi yang diperbolehkan. */
