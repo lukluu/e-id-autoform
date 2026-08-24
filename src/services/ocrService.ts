@@ -84,7 +84,7 @@ export function getOcrEngine(): OcrEngine {
 }
 
 export interface RunOcrOptions {
-  engine?: OcrEngine;
+  engine?: OcrEngine | undefined;
   onStage: (stage: "prepare" | "enhance" | "read" | "extract" | "fill", progress: number) => void;
 }
 
