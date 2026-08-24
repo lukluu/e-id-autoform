@@ -21,7 +21,7 @@ export function CameraSelector({ devices, activeDeviceId, onSelect }: CameraSele
       <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
         <Video className="size-3.5" /> Pilih kamera
       </Label>
-      <Select value={activeDeviceId ?? undefined} onValueChange={onSelect}>
+      <Select value={activeDeviceId ?? ""} onValueChange={onSelect}>
         <SelectTrigger className="w-full">
           <SelectValue placeholder={devices.length ? "Pilih kamera" : "Tidak ada kamera"} />
         </SelectTrigger>
