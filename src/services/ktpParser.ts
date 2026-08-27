@@ -271,10 +271,14 @@ export function reconstructNik(
   const preCleaned = preCleanNikString(rawNik.replace(/\s+/g, ""));
   let cleaned = toDigitsAggressive(preCleaned);
 
-  // 1. Jika sudah 16 digit, pastikan 4 digit terakhir diakhiri 0001 sesuai standar autofill sistem
+  // 1. Jika sudah 16 digit valid, KEMBALIKAN UTUH NIK ASLI
   if (cleaned.length === 16 && isValidNik(cleaned)) {
-    return cleaned.slice(0, 12) + "0001";
+    return cleaned;
   }
+
+  // Ambil 4 digit terakhir asli jika ada (atau fallback ke 0001 jika kosong)
+  const last4 = cleaned.length >= 4 ? cleaned.slice(-4) : "0001";
+  const safeSuffix = /^\d{4}$/.test(last4) ? last4 : "0001";
 
   // 2. Hitung 6 digit tanggal lahir standar Disdukcapil (DDMMYY)
   let expectedTglPart: string | null = null;
@@ -290,7 +294,7 @@ export function reconstructNik(
 
   const provId = provinsiName ? getProvinceIdByName(provinsiName) : null;
 
-  // 3. Susun ulang NIK jika tanggal lahir diketahui dengan suffix 0001
+  // 3. Susun ulang NIK jika tanggal lahir diketahui
   if (expectedTglPart) {
     let regionPrefix = cleaned.length >= 6 ? cleaned.slice(0, 6) : "";
 
@@ -306,7 +310,7 @@ export function reconstructNik(
     }
 
     if (regionPrefix.length === 6 && /^\d{6}$/.test(regionPrefix)) {
-      const assembled = `${regionPrefix}${expectedTglPart}0001`;
+      const assembled = `${regionPrefix}${expectedTglPart}${safeSuffix}`;
       if (assembled.length === 16 && isValidNik(assembled)) {
         return assembled;
       }
@@ -318,27 +322,24 @@ export function reconstructNik(
     const prefix = cleaned.slice(0, 6);
     const middle = cleaned.slice(6, -4);
     const dedupMiddle = middle.replace(/111/, "11").replace(/0000/, "000");
-    const fixed = `${prefix}${dedupMiddle}0001`;
+    const fixed = `${prefix}${dedupMiddle}${safeSuffix}`;
     if (fixed.length === 16 && isValidNik(fixed)) {
       return fixed;
     }
-    return cleaned.slice(0, 12) + "0001";
+    return cleaned.slice(0, 16);
   }
 
-  // 5. Jika panjang 15 digit
+  // 5. Jika panjang 15 digit (biasanya terpotong 1 digit provinsi di depan)
   if (cleaned.length === 15) {
     if (provId && !cleaned.startsWith(provId)) {
-      const fixed = `${provId[0]}${cleaned.slice(0, 11)}0001`;
+      const fixed = `${provId[0]}${cleaned}`;
       if (fixed.length === 16 && isValidNik(fixed)) {
         return fixed;
       }
     }
-    return cleaned.slice(0, 12) + "0001";
-  }
-
-  // Jika panjang >= 12, lengkapi dengan 0001
-  if (cleaned.length >= 12) {
-    return cleaned.slice(0, 12) + "0001";
+    if (expectedTglPart) {
+      return `${cleaned.slice(0, 6)}${expectedTglPart}${safeSuffix}`;
+    }
   }
 
   return cleaned;
