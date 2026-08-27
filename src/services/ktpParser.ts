@@ -267,94 +267,49 @@ export function reconstructNik(
   jenisKelamin?: string,
   provinsiName?: string,
 ): string {
-  // Pre-clean OCR noise khusus NIK sebelum agresif digit-conversion
+  // Pre-clean OCR noise khusus NIK sebelum konversi digit
   const preCleaned = preCleanNikString(rawNik.replace(/\s+/g, ""));
   let cleaned = toDigitsAggressive(preCleaned);
 
-  // 1. Jika sudah 16 digit valid, KEMBALIKAN UTUH NIK ASLI
-  if (cleaned.length === 16 && isValidNik(cleaned)) {
+  // 1. Jika sudah 16 digit, KEMBALIKAN UTUH NIK ASLI DARI OCR
+  if (cleaned.length === 16) {
     return cleaned;
-  }
-
-  // Ambil 4 digit terakhir asli jika ada (atau fallback ke 0001 jika kosong)
-  const last4 = cleaned.length >= 4 ? cleaned.slice(-4) : "0001";
-  const safeSuffix = /^\d{4}$/.test(last4) ? last4 : "0001";
-
-  // 2. Hitung 6 digit tanggal lahir standar Disdukcapil (DDMMYY)
-  let expectedTglPart: string | null = null;
-  if (tanggalLahirIso && /^\d{4}-\d{2}-\d{2}$/.test(tanggalLahirIso)) {
-    const [year, month, day] = tanggalLahirIso.split("-");
-    const isFemale = jenisKelamin?.toUpperCase().includes("PEREMPUAN");
-    const d = parseInt(day ?? "0", 10);
-    const dayStr = (isFemale ? d + 40 : d).toString().padStart(2, "0");
-    const monthStr = (month ?? "").padStart(2, "0");
-    const yearStr = (year ?? "").slice(-2);
-    expectedTglPart = `${dayStr}${monthStr}${yearStr}`; // 6 digit
   }
 
   const provId = provinsiName ? getProvinceIdByName(provinsiName) : null;
 
-  // 3. Susun ulang NIK jika tanggal lahir diketahui
-  if (expectedTglPart) {
-    let regionPrefix = cleaned.length >= 6 ? cleaned.slice(0, 6) : "";
-
-    // Jika regionPrefix terpotong angka depan (misal "401104" hilang "7" di Sulawesi Tenggara "74")
-    if (provId && regionPrefix.length >= 4 && !regionPrefix.startsWith(provId)) {
-      if (regionPrefix.startsWith(provId.slice(1))) {
-        regionPrefix = provId[0] + regionPrefix;
-        if (regionPrefix.length > 6) regionPrefix = regionPrefix.slice(0, 6);
-      } else if (regionPrefix.length >= 5 && provId.length >= 2) {
-        const candidate = provId[0] + regionPrefix;
-        if (candidate.length >= 6) regionPrefix = candidate.slice(0, 6);
-      }
-    }
-
-    if (regionPrefix.length === 6 && /^\d{6}$/.test(regionPrefix)) {
-      const assembled = `${regionPrefix}${expectedTglPart}${safeSuffix}`;
-      if (assembled.length === 16 && isValidNik(assembled)) {
-        return assembled;
-      }
+  // 2. Jika 15 digit dan provinsi terdeteksi (misal angka depan provinsi hilang: "4011..." bukan "74011...")
+  if (cleaned.length === 15 && provId && !cleaned.startsWith(provId) && cleaned.startsWith(provId.slice(1))) {
+    const fixed = `${provId[0]}${cleaned}`;
+    if (fixed.length === 16) {
+      return fixed;
     }
   }
 
-  // 4. Jika panjang > 16 (duplikasi lookalike OCR seperti "1L1" → "111")
+  // 3. Jika panjang > 16 (duplikasi lookalike OCR seperti "1L1" → "111")
   if (cleaned.length > 16) {
-    const prefix = cleaned.slice(0, 6);
-    const middle = cleaned.slice(6, -4);
-    const dedupMiddle = middle.replace(/111/, "11").replace(/0000/, "000");
-    const fixed = `${prefix}${dedupMiddle}${safeSuffix}`;
-    if (fixed.length === 16 && isValidNik(fixed)) {
-      return fixed;
+    const dedup = cleaned.replace(/111/g, "11").replace(/0000/g, "000");
+    if (dedup.length === 16) {
+      return dedup;
     }
     return cleaned.slice(0, 16);
   }
 
-  // 5. Jika panjang 15 digit (biasanya terpotong 1 digit provinsi di depan)
-  if (cleaned.length === 15) {
-    if (provId && !cleaned.startsWith(provId)) {
-      const fixed = `${provId[0]}${cleaned}`;
-      if (fixed.length === 16 && isValidNik(fixed)) {
-        return fixed;
-      }
-    }
-    if (expectedTglPart) {
-      return `${cleaned.slice(0, 6)}${expectedTglPart}${safeSuffix}`;
-    }
-  }
-
+  // 4. Jika panjang < 16, kembalikan hasil pembacaan OCR apa adanya (tanpa menambah 0001 palsu)
   return cleaned;
 }
 
-
 /**
  * Extract Golongan Darah from the Jenis Kelamin line.
- * e.g. "PEREMPUAN Gol. Darah : O" or "PEREMPUAN Gol. Darah : -"
+ * e.g. "PEREMPUAN Gol. Darah : O", "LAKI-LAKI Gol. Darah : 0", "LAKI-LAKI Gol. Darah : -"
  */
 function extractInlineGolDarah(value: string): { jenisKelamin: string; golDarah: string | null } {
-  const golMatch = /(?:GOL\.?\s*DARAH\s*[:=]?\s*)([AaBbOo-]|AB)/i.exec(value);
+  const golMatch = /(?:GOL\.?\s*DARAH\s*[:=]?\s*)(AB|[AaBbOo0QqDd\-]|\b[0OAB]\b)/i.exec(value);
   if (golMatch) {
     const jk = value.slice(0, golMatch.index).trim();
-    let gd = golMatch[1]?.toUpperCase() ?? "";
+    let gd = (golMatch[1] ?? "").toUpperCase().trim();
+    // Jika terbaca angka 0, Q, atau D, maka itu pasti Golongan Darah O
+    if (gd === "0" || gd === "Q" || gd === "D") gd = "O";
     if (gd === "-") gd = "";
     return { jenisKelamin: jk, golDarah: gd || null };
   }
@@ -585,8 +540,26 @@ export function parseKtpText(rawText: string, baseConfidence = 0.8): ParseOutcom
         break;
       }
       case "golonganDarah": {
-        const matched = matchOption(value, GOLONGAN_DARAH);
-        if (matched) set("golonganDarah", matched, score * 0.8);
+        let cleanGd = cleanValue(value).toUpperCase().replace(/^[:=_\s.-]+/, "").trim();
+        // Jika terbaca angka 0, Q, D, maka itu pasti Golongan Darah O
+        if (cleanGd === "0" || cleanGd === "Q" || cleanGd === "D" || cleanGd.startsWith("0") || cleanGd.startsWith("O")) {
+          set("golonganDarah", "O", score * 0.95);
+          break;
+        }
+        if (cleanGd === "AB" || cleanGd.startsWith("AB")) {
+          set("golonganDarah", "AB", score * 0.95);
+          break;
+        }
+        if (cleanGd === "A" || cleanGd.startsWith("A")) {
+          set("golonganDarah", "A", score * 0.95);
+          break;
+        }
+        if (cleanGd === "B" || cleanGd.startsWith("B")) {
+          set("golonganDarah", "B", score * 0.95);
+          break;
+        }
+        const matched = matchOption(cleanGd, GOLONGAN_DARAH);
+        if (matched) set("golonganDarah", matched, score * 0.85);
         break;
       }
       case "alamat": {
@@ -756,11 +729,6 @@ export function parseKtpText(rawText: string, baseConfidence = 0.8): ParseOutcom
   }
   if (!data.berlakuHingga) {
     set("berlakuHingga", "SEUMUR HIDUP", 0.9);
-  }
-
-  // Pastikan NIK hasil ekstraksi/autofill selalu berakhiran 0001 (16 digit)
-  if (data.nik && data.nik.length === 16) {
-    data.nik = data.nik.slice(0, 12) + "0001";
   }
 
   if (!data.nik) warnings.push("NIK tidak terbaca. Silakan isi manual.");
