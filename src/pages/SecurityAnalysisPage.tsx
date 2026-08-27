@@ -34,13 +34,13 @@ import { encryptUtf8WithBlowfish } from "@/crypto/blowfish";
 export function SecurityAnalysisPage() {
   // State Avalanche Effect
   const [avalanchePlaintext, setAvalanchePlaintext] = useState(
-    "NIK: 7403140408020001, NAMA: LA ODE LUKMANA, PROV: SULAWESI TENGGARA",
+    "NIK: 7401044511030004, NAMA: DIAN RAMADAN. L, PROV: SULAWESI TENGGARA, KAB: KABUPATEN KOLAKA",
   );
   const [avalancheKey, setAvalancheKey] = useState("KunciSkripsiBlowfish2026");
   const [avalancheMode, setAvalancheMode] = useState<"flip_plaintext_bit" | "flip_key_bit">("flip_plaintext_bit");
   const [avalancheResult, setAvalancheResult] = useState<AvalancheResult | null>(() =>
     calculateAvalancheEffect(
-      "NIK: 7403140408020001, NAMA: LA ODE LUKMANA, PROV: SULAWESI TENGGARA",
+      "NIK: 7401044511030004, NAMA: DIAN RAMADAN. L, PROV: SULAWESI TENGGARA, KAB: KABUPATEN KOLAKA",
       "KunciSkripsiBlowfish2026",
       "flip_plaintext_bit",
     ),
@@ -49,18 +49,18 @@ export function SecurityAnalysisPage() {
   // State Shannon Entropy
   const [entropyInput, setEntropyInput] = useState(
     JSON.stringify({
-      nik: "7403140408020001",
-      nama: "LA ODE LUKMANA",
-      alamat: "KEL DANA, WATOPUTE, MUNA",
+      nik: "7401044511030004",
+      nama: "DIAN RAMADAN. L",
+      alamat: "LINGK. IV EPE, WUNDULAKO, KOLAKA",
     }),
   );
   const [entropyKey, setEntropyKey] = useState("KunciBlowfishEnkripsiKTP");
   const [entropyResult, setEntropyResult] = useState<EntropyResult | null>(() => {
     const enc = encryptUtf8WithBlowfish(
       JSON.stringify({
-        nik: "7403140408020001",
-        nama: "LA ODE LUKMANA",
-        alamat: "KEL DANA, WATOPUTE, MUNA",
+        nik: "7401044511030004",
+        nama: "DIAN RAMADAN. L",
+        alamat: "LINGK. IV EPE, WUNDULAKO, KOLAKA",
       }),
       "KunciBlowfishEnkripsiKTP",
     );

@@ -5,13 +5,13 @@ console.log("=== MEMULAI TEST SUITE ALGORITMA BLOWFISH MANUAL ===");
 
 // Test 1: Basic Encryption and Decryption Roundtrip
 const sampleText = JSON.stringify({
-  nik: "7403140408020001",
-  nama: "LA ODE LUKMANA",
-  tempatLahir: "DANA",
-  tanggalLahir: "2002-08-08",
-  jenisKelamin: "LAKI-LAKI",
+  nik: "7401044511030004",
+  nama: "DIAN RAMADAN. L",
+  tempatLahir: "KOLAKA",
+  tanggalLahir: "2003-11-05",
+  jenisKelamin: "PEREMPUAN",
   provinsi: "SULAWESI TENGGARA",
-  kabupatenKota: "KABUPATEN MUNA",
+  kabupatenKota: "KABUPATEN KOLAKA",
 });
 const key = "KunciRahasiaKTP2026";
 
