@@ -60,14 +60,20 @@ export function Cropper({
       event.stopPropagation();
       const rect = stageRef.current?.getBoundingClientRect();
       if (!rect) return;
-      (event.target as Element).setPointerCapture?.(event.pointerId);
+
+      try {
+        (event.target as Element).setPointerCapture?.(event.pointerId);
+      } catch {
+        // fallback jika pointer capture tidak didukung
+      }
+
       dragRef.current = {
         mode,
         startX: event.clientX,
         startY: event.clientY,
         start: { ...crop },
-        stageW: rect.width,
-        stageH: rect.height,
+        stageW: rect.width || 1,
+        stageH: rect.height || 1,
       };
     },
     [crop],
@@ -77,6 +83,8 @@ export function Cropper({
     const handleMove = (event: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag) return;
+
+      // Hitung delta koordinat relatif terhadap ukuran stage kanvas saat drag dimulai
       const dx = (event.clientX - drag.startX) / drag.stageW;
       const dy = (event.clientY - drag.startY) / drag.stageH;
       const s = drag.start;
@@ -97,7 +105,7 @@ export function Cropper({
         width = clamp(s.width - dx, MIN_SIZE, s.x + s.width);
         x = s.x + s.width - width;
       }
-      if (lockAspect) {
+      if (lockAspect && aspectInStage > 0) {
         height = clamp(width / aspectInStage, MIN_SIZE, 1);
         width = height * aspectInStage;
       } else {
@@ -112,30 +120,42 @@ export function Cropper({
       y = clamp(y, 0, 1 - height);
       onCropChange({ x, y, width, height });
     };
-    const handleUp = () => {
-      dragRef.current = null;
+
+    const handleUp = (event: PointerEvent) => {
+      if (dragRef.current) {
+        try {
+          (event.target as Element)?.releasePointerCapture?.(event.pointerId);
+        } catch {
+          // ignore
+        }
+        dragRef.current = null;
+      }
     };
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
+
+    window.addEventListener("pointermove", handleMove, { passive: true });
+    window.addEventListener("pointerup", handleUp, { passive: true });
+    window.addEventListener("pointercancel", handleUp, { passive: true });
+
     return () => {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
     };
   }, [lockAspect, onCropChange, rotH, rotW]);
 
   const handles: Handle[] = ["nw", "ne", "sw", "se"];
   const handlePos: Record<Handle, string> = {
-    nw: "-left-1.5 -top-1.5 cursor-nwse-resize",
-    ne: "-right-1.5 -top-1.5 cursor-nesw-resize",
-    sw: "-left-1.5 -bottom-1.5 cursor-nesw-resize",
-    se: "-right-1.5 -bottom-1.5 cursor-nwse-resize",
+    nw: "-left-2 -top-2 cursor-nwse-resize",
+    ne: "-right-2 -top-2 cursor-nesw-resize",
+    sw: "-left-2 -bottom-2 cursor-nesw-resize",
+    se: "-right-2 -bottom-2 cursor-nwse-resize",
   };
 
   return (
-    <div className="flex min-h-[260px] w-full max-h-[65vh] items-center justify-center overflow-hidden rounded-xl bg-editor-canvas p-2 sm:p-4">
+    <div className="flex min-h-[260px] w-full max-h-[65vh] items-center justify-center overflow-hidden rounded-xl bg-editor-canvas p-2 sm:p-4 touch-none select-none">
       <div
         ref={stageRef}
-        className="relative select-none"
+        className="relative select-none touch-none"
         style={{
           aspectRatio: String(stageAspect),
           width: `min(100%, calc(58vh * ${stageAspect}))`,
@@ -143,9 +163,10 @@ export function Cropper({
           maxHeight: "58vh",
           transform: `scale(${zoom})`,
           transformOrigin: "center center",
+          touchAction: "none",
         }}
       >
-        <div className="absolute inset-0 overflow-hidden rounded-lg">
+        <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none">
           <img
             src={src}
             alt="Pratinjau KTP"
@@ -156,7 +177,7 @@ export function Cropper({
               setNatural(size);
               onImageLoad?.(size);
             }}
-            className="absolute left-1/2 top-1/2 max-w-none origin-center"
+            className="absolute left-1/2 top-1/2 max-w-none origin-center pointer-events-none select-none"
             style={{
               width: `${(natural.width / (rotW || 1)) * 100}%`,
               transform: `translate(-50%, -50%) rotate(${rotation}deg) scale(${innerScale})`,
@@ -174,26 +195,32 @@ export function Cropper({
           }}
         />
 
+        {/* Kotak Crop Interaktif */}
         <div
           onPointerDown={(e) => onPointerDown(e, "move")}
-          className="absolute cursor-move border-2 border-primary/90 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]"
+          className="absolute cursor-move border-2 border-primary shadow-[0_0_0_1px_rgba(255,255,255,0.45)] touch-none select-none"
           style={{
             left: `${crop.x * 100}%`,
             top: `${crop.y * 100}%`,
             width: `${crop.width * 100}%`,
             height: `${crop.height * 100}%`,
+            touchAction: "none",
           }}
         >
+          {/* Grid Panduan 3x3 */}
           <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className="border border-primary/25" />
+              <div key={i} className="border border-primary/20" />
             ))}
           </div>
+
+          {/* 4 Titik Handle Sudut */}
           {handles.map((h) => (
             <span
               key={h}
               onPointerDown={(e) => onPointerDown(e, h)}
-              className={`absolute size-3.5 rounded-full border-2 border-primary bg-card ${handlePos[h]}`}
+              className={`absolute size-4 sm:size-3.5 rounded-full border-2 border-primary bg-card shadow-sm ${handlePos[h]} touch-none`}
+              style={{ touchAction: "none" }}
             />
           ))}
         </div>

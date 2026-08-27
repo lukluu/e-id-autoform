@@ -89,12 +89,7 @@ class AuthService {
       return { success: false, error: "Email atau username wajib diisi." };
     }
 
-    let user: UserRecord | null = null;
-    if (cleanId.includes("@")) {
-      user = await dbService.getUserByEmail(cleanId);
-    } else {
-      user = (await dbService.getUserByUsername(cleanId)) || (await dbService.getUserByEmail(cleanId));
-    }
+    const user = await dbService.getUserByIdentifier(cleanId);
 
     if (!user) {
       return { success: false, error: "Akun dengan email/username tersebut tidak ditemukan di database." };

@@ -9,7 +9,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   testNeonConnection,
   initNeonDatabase,
+  neonGetUserByIdentifier,
   neonGetUserByEmail,
+  neonGetUserByUsername,
+  neonGetUserById,
   neonCreateUser,
   neonUpdateUserPassword,
   neonUpdateUserProfile,
@@ -83,8 +86,16 @@ export async function handleApiRequest(
 
     if ((cleanUrl === "/api/db/user-get" || cleanUrl === "/api/mysql/user-get") && req.method === "POST") {
       const body = await parseBody(req);
-      const user = await neonGetUserByEmail(body.email);
-      return sendJson(res, { success: true, user });
+      const identifier = body.identifier || body.email || body.username;
+      if (identifier) {
+        const user = await neonGetUserByIdentifier(identifier);
+        return sendJson(res, { success: true, user });
+      }
+      if (body.id) {
+        const user = await neonGetUserById(body.id);
+        return sendJson(res, { success: true, user });
+      }
+      return sendJson(res, { success: true, user: null });
     }
 
     if ((cleanUrl === "/api/db/user-create" || cleanUrl === "/api/mysql/user-create") && req.method === "POST") {

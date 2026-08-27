@@ -110,13 +110,20 @@ export function useCamera(): UseCameraResult {
   const capture = useCallback((): string | null => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
+
+    // Batasi lebar maksimal tangkapan kamera ke 1600px agar tidak membebani memori HP
+    const maxDimension = 1600;
+    const scale = Math.min(1, maxDimension / Math.max(video.videoWidth, video.videoHeight));
+    const width = Math.round(video.videoWidth * scale);
+    const height = Math.round(video.videoHeight * scale);
+
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/png");
+    ctx.drawImage(video, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.92);
   }, []);
 
   useEffect(() => {

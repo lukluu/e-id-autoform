@@ -99,6 +99,29 @@ function mapUserRecord(user: {
   };
 }
 
+export async function neonGetUserByIdentifier(identifier: string): Promise<UserRecord | null> {
+  if (!identifier || !identifier.trim()) {
+    throw new ValidationError("Email atau username wajib diisi.");
+  }
+
+  const clean = identifier.toLowerCase().trim();
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: clean },
+          { username: clean },
+        ],
+      },
+    });
+
+    if (!user) return null;
+    return mapUserRecord(user);
+  } catch (err) {
+    throw handlePrismaError(err);
+  }
+}
+
 export async function neonGetUserByEmail(email: string): Promise<UserRecord | null> {
   if (!email || !email.trim()) {
     throw new ValidationError("Email pengguna wajib diisi.");

@@ -200,62 +200,47 @@ class DatabaseService {
   // USER OPERATIONS
   // ----------------------------------------------------------------
 
-  public async getUserByEmail(email: string): Promise<UserRecord | null> {
-    const cleanEmail = email.trim().toLowerCase();
+  public async getUserByIdentifier(identifier: string): Promise<UserRecord | null> {
+    const cleanId = identifier.trim().toLowerCase();
+    if (!cleanId) return null;
 
-    // 1. Coba Neon PostgreSQL
-    if (this.isRemoteDbActive) {
-      try {
-        const res = await fetch("/api/db/user-get", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) {
-            this.saveUserLocalStorage(data.user);
-            return data.user;
-          }
-          // Jika server aktif dan user tidak ditemukan di database Neon,
-          // hapus cache lokal agar tidak terjadi login hantu (ghost account)
-          this.removeUserLocalStorage(cleanEmail);
-          return null;
+    // 1. Coba Neon PostgreSQL Cloud
+    try {
+      const res = await fetch("/api/db/user-get", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: cleanId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          this.saveUserLocalStorage(data.user);
+          return data.user;
         }
-      } catch {
-        // Fallback jika network error
+        // Jika server terhubung dan akun tidak ditemukan, hapus cache lokal
+        if (cleanId.includes("@")) {
+          this.removeUserLocalStorage(cleanId);
+        }
+        return null;
       }
+    } catch {
+      // Fallback jika offline/network error
     }
 
     // 2. Fallback Local Storage
-    return this.getUserByEmailLocalStorage(cleanEmail);
+    return (
+      this.getUserByEmailLocalStorage(cleanId) ||
+      this.getAllUsersLocalStorage().find((u) => u.username?.toLowerCase() === cleanId) ||
+      null
+    );
+  }
+
+  public async getUserByEmail(email: string): Promise<UserRecord | null> {
+    return this.getUserByIdentifier(email);
   }
 
   public async getUserByUsername(username: string): Promise<UserRecord | null> {
-    const cleanUsername = username.trim().toLowerCase();
-
-    if (this.isRemoteDbActive) {
-      try {
-        const res = await fetch("/api/db/user-get", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: cleanUsername }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) {
-            this.saveUserLocalStorage(data.user);
-            return data.user;
-          }
-          return null;
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    const list = this.getAllUsersLocalStorage();
-    return list.find((u) => u.username?.toLowerCase() === cleanUsername) || null;
+    return this.getUserByIdentifier(username);
   }
 
   public async createUser(user: UserRecord): Promise<void> {
