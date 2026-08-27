@@ -66,6 +66,9 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                   placeholder="nama@email.com atau username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                   className="text-xs"
                 />
@@ -90,6 +93,9 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                   className="text-xs pr-10"
                 />

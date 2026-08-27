@@ -96,8 +96,9 @@ class AuthService {
     }
 
     const hashedInput = hashPasswordSimple(password);
+    const trimmedHashedInput = hashPasswordSimple(password.trim());
     const storedHash = user.password || user.passwordHash;
-    if (storedHash !== hashedInput) {
+    if (storedHash !== hashedInput && storedHash !== trimmedHashedInput) {
       return { success: false, error: "Kata sandi yang dimasukkan salah." };
     }
 
