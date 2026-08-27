@@ -5,25 +5,21 @@ import {
   Cpu,
   Scan,
   CheckCircle2,
-  ArrowRight,
   Database,
   Shield,
   FileText,
   Sliders,
   Play,
-  RotateCcw,
-  Zap,
   Info,
-  Search,
-  Eye,
   Workflow,
   Compass,
+  Filter,
+  Code2,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
 import { parseKtpText } from "@/services/ktpParser";
 
 interface SampleOcrCase {
@@ -100,10 +96,75 @@ BERLAKU HINGGA: SEUMUR HIDUP`,
   },
 ];
 
+type LookalikeCategory = "all" | "nik" | "letters" | "blood" | "rtrw" | "labels" | "wilayah";
+
+interface LookalikeRule {
+  category: "nik" | "letters" | "blood" | "rtrw" | "labels" | "wilayah";
+  target: string;
+  input: string;
+  output: string;
+  note: string;
+}
+
+const ALL_LOOKALIKE_RULES: LookalikeRule[] = [
+  // 1. NIK Lookalike (Numerik Agresif OCR-B)
+  { category: "nik", target: "Angka NIK '1'", input: "I, l, |, ], !, L, %, /", output: "1", note: "Garis tegak monospaced OCR-B pada NIK sering terbaca huruf kecil l atau pipa |" },
+  { category: "nik", target: "Angka NIK '0'", input: "O, o, D, d, Q, @, C", output: "0", note: "Bentuk oval tertutup pada digit angka sering dikenali huruf kapital O, D, atau Q" },
+  { category: "nik", target: "Angka NIK '2'", input: "Z, z", output: "2", note: "Lekukan garis atas angka 2 sering memicu karakter huruf Z" },
+  { category: "nik", target: "Angka NIK '3'", input: "E, ], B (posisi numerik)", output: "3", note: "Lengkungan ganda angka 3 kadang terbaca huruf B atau kurung siku" },
+  { category: "nik", target: "Angka NIK '4'", input: "A, a, H, h, +", output: "4", note: "Puncak segitiga angka 4 menyerupai huruf A atau H" },
+  { category: "nik", target: "Angka NIK '5'", input: "S, s, $, §", output: "5", note: "Bentuk kurva angka 5 memiliki kemiripan optik sangat tinggi dengan huruf S" },
+  { category: "nik", target: "Angka NIK '6'", input: "b, G, C, e", output: "6", note: "Lengkungan bawah angka 6 sering dikenali sebagai huruf b kecil atau G" },
+  { category: "nik", target: "Angka NIK '7'", input: "?, /, >, T, t, F, f", output: "7", note: "Garis horizontal atas dan diagonal angka 7 sering memicu simbol tanda tanya atau T" },
+  { category: "nik", target: "Angka NIK '8'", input: "B, &, X", output: "8", note: "Dua lingkaran bertumpuk angka 8 sering terbaca huruf B kapital atau ampersand" },
+  { category: "nik", target: "Angka NIK '9'", input: "q, g, P, p", output: "9", note: "Lingkaran atas dan tangkai angka 9 mirip dengan huruf q atau g" },
+
+  // 2. Huruf Lookalike pada Teks (Nama, Tempat, Alamat)
+  { category: "letters", target: "Huruf 'O' (Nama/Teks)", input: "0 (angka nol)", output: "O", note: "Di field nama/tempat lahir alfabetis, angka nol dikembalikan menjadi huruf O" },
+  { category: "letters", target: "Huruf 'I' (Nama/Teks)", input: "1 (angka satu), |", output: "I", note: "Di field nama alfabetis, angka satu dikembalikan menjadi huruf I" },
+  { category: "letters", target: "Huruf 'A' (Nama/Teks)", input: "4 (angka empat)", output: "A", note: "Contoh: 'N4MA' atau 'D4N4' dikoreksi menjadi 'NAMA' dan 'DANA'" },
+  { category: "letters", target: "Huruf 'S' (Nama/Teks)", input: "5 (angka lima), $", output: "S", note: "Contoh: 'I5LAM' dikoreksi menjadi 'ISLAM'" },
+  { category: "letters", target: "Huruf 'G' (Nama/Teks)", input: "6 (angka enam)", output: "G", note: "Contoh: 'T6L' dikoreksi menjadi 'TGL'" },
+  { category: "letters", target: "Huruf 'B' (Nama/Teks)", input: "8 (angka delapan)", output: "B", note: "Contoh: '8ELUM KAWIN' dikoreksi menjadi 'BELUM KAWIN'" },
+
+  // 3. Golongan Darah
+  { category: "blood", target: "Golongan Darah 'O'", input: "0, Q, D, O, o", output: "O", note: "Angka nol atau kembaran oval pada kolom Golongan Darah dipastikan sebagai tipe O" },
+  { category: "blood", target: "Golongan Darah '-'", input: "-, --, —, –, : -, :-", output: "-", note: "Tanda strip pada KTP resmi menunjukkan data golongan darah belum tercatat" },
+  { category: "blood", target: "Golongan Darah 'A/B/AB'", input: "A, B, AB, A., B.", output: "A, B, AB", note: "Deteksi golongan darah standar dengan pembersihan tanda baca titik/spasi" },
+
+  // 4. Format RT / RW (3 Digit Padding)
+  { category: "rtrw", target: "Format RT/RW '000'", input: "OOO, OOG, DOG, DOO, 00O, 00, 0", output: "000", note: "Nilai nol pada RT/RW yang terbaca huruf O atau D dinormalisasi ke 3 digit '000'" },
+  { category: "rtrw", target: "Format RT/RW '001'", input: "1, 01, OO1, 0O1", output: "001", note: "Angka 1 digit dipadding otomatis dengan leading zeros sesuai format Disdukcapil" },
+  { category: "rtrw", target: "Format RT/RW '002'", input: "2, 02, OO2, ZO2", output: "002", note: "Angka RT 2 dinormalisasi ke '002'" },
+
+  // 5. Fuzzy Matching Label Field e-KTP (Levenshtein Distance)
+  { category: "labels", target: "Label NIK", input: "NIK, N1K, NlK, N|K, NIX, NK, N1X, N1C", output: "nik", note: "Threshold kemiripan string >= 58%" },
+  { category: "labels", target: "Label Nama", input: "NAMA, N4MA", output: "nama", note: "Threshold kemiripan string >= 60%" },
+  { category: "labels", target: "Label Tempat/Tgl Lahir", input: "TEMPAT/TGL LAHIR, TEMPAT/TGI, TMPT/TGL, TEMPATIFGI, TEMPATITGL", output: "tempatLahir", note: "Mendeteksi variasi pemisah slash/titik dan salah baca I/L" },
+  { category: "labels", target: "Label Jenis Kelamin", input: "JENIS KELAMIN, JENISKELAMIN, JENIS KELAM1N, JORUS KELAMIN, JORUS", output: "jenisKelamin", note: "Menangani typo umum OCR 'JORUS' akibat lipatan kartu" },
+  { category: "labels", target: "Label Golongan Darah", input: "GOL DARAH, GOL. DARAH, GOLONGAN DARAH, GDARAH, DARAH", output: "golonganDarah", note: "Mendukung ekstraksi mandiri maupun sebaris dengan Jenis Kelamin" },
+  { category: "labels", target: "Label Alamat", input: "ALAMAT, ALAMA!, ALAMA, ALAMAI, ALMAT", output: "alamat", note: "Menangkap baris alamat utama beserta sambungan baris berikutnya" },
+  { category: "labels", target: "Label RT/RW", input: "RT/RW, RTRW, RT RW, RTAW, ATAW, AT/RW, PT/RW, PT RW", output: "rt & rw", note: "Mendeteksi salah baca huruf R menjadi A atau P" },
+  { category: "labels", target: "Label Kelurahan/Desa", input: "KEL/DESA, KEI/DESA, KELDESA, KEIDESA, KELURAHAN/DESA, KCL/DESA", output: "kelurahanDesa", note: "Menangani salah baca huruf L menjadi I atau C" },
+  { category: "labels", target: "Label Kecamatan", input: "KECAMATAN, KEC, KEC., KECAMATAM", output: "kecamatan", note: "Mengenali singkatan resmi maupun variasi salah baca" },
+  { category: "labels", target: "Label Status Perkawinan", input: "STATUS PERKAWINAN, STATUS PERKAW1NAN, STATUS PERKAWINAM, STATUS", output: "statusPerkawinan", note: "Mencocokkan ke opsi: BELUM KAWIN, KAWIN, CERAI HIDUP, CERAI MATI" },
+  { category: "labels", target: "Label Pekerjaan", input: "PEKERJAAN, PEKERJAAM, PEKERJ44N", output: "pekerjaan", note: "Dibersihkan dari cap noise stempel kota atau nomor tanda tangan" },
+  { category: "labels", target: "Label Kewarganegaraan", input: "KEWARGANEGARAAN, KEWARGANEGARAN, WARGA NEGARA, KEWARGA", output: "kewarganegaraan", note: "Menormalisasi nilai ke standar WNI / WNA" },
+  { category: "labels", target: "Label Masa Berlaku", input: "BERLAKU HINGGA, BERLAKUHINGGA, BERLAKU, BERLAKU S/D", output: "berlakuHingga", note: "Menormalisasi teks 'SEUMUR HIDUP' atau format tanggal kedaluwarsa" },
+
+  // 6. Typo Khusus Nama Wilayah Administrasi
+  { category: "wilayah", target: "Kabupaten Kolaka", input: "KOAKA, KOEAKA, KOLAKK", output: "KABUPATEN KOLAKA", note: "Koreksi otomatis typo huruf L pada nama Kabupaten Kolaka" },
+  { category: "wilayah", target: "Kabupaten Muna", input: "MINA, MJNA", output: "KABUPATEN MUNA", note: "Koreksi otomatis typo huruf U yang terbaca I atau J pada Kabupaten Muna" },
+  { category: "wilayah", target: "Prefix Kabupaten", input: "UPATEN, KABUPATEN UPATEN, KABUPATEN KABUPATEN", output: "KABUPATEN", note: "Menghilangkan duplikasi prefix akibat noise garis pemisah KTP" },
+  { category: "wilayah", target: "Provinsi Indonesia", input: "PROVINS1, PROV., PN ST PROVINSI", output: "Nama Resmi Provinsi", note: "Dicocokkan ke 38 Provinsi resmi Republik Indonesia" },
+];
+
 export function OcrAnalysisPage() {
   const [selectedCase, setSelectedCase] = useState<SampleOcrCase>(SAMPLE_OCR_CASES[0]);
   const [customText, setCustomText] = useState(SAMPLE_OCR_CASES[0].rawText);
   const [parsedResult, setParsedResult] = useState(() => parseKtpText(SAMPLE_OCR_CASES[0].rawText));
+  const [activeCategory, setActiveCategory] = useState<LookalikeCategory>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSelectCase = (c: SampleOcrCase) => {
     setSelectedCase(c);
@@ -114,6 +175,17 @@ export function OcrAnalysisPage() {
   const handleRunParser = () => {
     setParsedResult(parseKtpText(customText));
   };
+
+  const filteredRules = ALL_LOOKALIKE_RULES.filter((rule) => {
+    const matchCategory = activeCategory === "all" || rule.category === activeCategory;
+    const matchSearch =
+      searchQuery === "" ||
+      rule.target.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rule.input.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rule.output.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      rule.note.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchCategory && matchSearch;
+  });
 
   const stages = [
     {
@@ -190,16 +262,6 @@ export function OcrAnalysisPage() {
     },
   ];
 
-  const lookalikeRules = [
-    { target: "NIK (Numerik)", input: "I, l, |, ], !, L", output: "1", note: "Font OCR-B sering menghasilkan garis vertikal tipis" },
-    { target: "NIK (Numerik)", input: "O, o, D, Q, @", output: "0", note: "Bentuk oval tertutup sering dibaca huruf O atau D" },
-    { target: "NIK (Numerik)", input: "Z, z", output: "2", note: "Lekukan angka 2 sering terbaca huruf Z" },
-    { target: "NIK (Numerik)", input: "b, G, C", output: "6", note: "Lengkungan angka 6 menyerupai huruf b kecil" },
-    { target: "NIK (Numerik)", input: "?, /, >, T", output: "7", note: "Garis miring angka 7 sering memicu simbol tanda tanya" },
-    { target: "Golongan Darah", input: "0, Q, D, O", output: "O", note: "Angka nol pada golongan darah pasti merujuk ke tipe O" },
-    { target: "Golongan Darah", input: "-, --, —, –", output: "-", note: "Tanda strip pada KTP resmi menunjukkan data belum terdata" },
-  ];
-
   return (
     <div className="space-y-8 pb-10">
       {/* Header */}
@@ -239,7 +301,7 @@ export function OcrAnalysisPage() {
             <Play className="size-3.5" /> Live Inspector
           </TabsTrigger>
           <TabsTrigger value="rules" className="text-xs font-semibold gap-1.5">
-            <Layers className="size-3.5" /> Tabel Lookalike
+            <Layers className="size-3.5" /> Kamus Lookalike ({ALL_LOOKALIKE_RULES.length})
           </TabsTrigger>
         </TabsList>
 
@@ -489,31 +551,79 @@ export function OcrAnalysisPage() {
           </div>
         </TabsContent>
 
-        {/* TAB 3: TABEL ATURAN LOOKALIKE & NORMALISASI */}
+        {/* TAB 3: TABEL LENGKAP ATURAN LOOKALIKE & NORMALISASI MULTI-KATEGORI */}
         <TabsContent value="rules" className="space-y-6">
           <Card className="border-border/60 bg-card/60">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Layers className="size-4 text-primary" /> Kamus Konversi Karakter Mirip (Lookalike Matrix)
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Daftar aturan cerdas penanganan ambiguitas karakter optik antara huruf dan angka pada formulir identitas KTP
-              </CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Layers className="size-4 text-primary" /> Kamus Lengkap Konversi Karakter Mirip & Fuzzy Matching ({filteredRules.length} Aturan)
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Seluruh matriks aturan penanganan ambiguitas optik OCR-B, normalisasi alfabet, dan perbaikan typo wilayah
+                  </CardDescription>
+                </div>
+
+                {/* Search box */}
+                <input
+                  type="text"
+                  placeholder="Cari target / input / output..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="text-xs px-3 py-1.5 rounded-md border border-input bg-background/80 focus:ring-1 focus:ring-primary focus:outline-hidden max-w-xs"
+                />
+              </div>
+
+              {/* Filter Tabs / Badges */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-3 border-t border-border/50">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1 mr-1">
+                  <Filter className="size-3" /> Kategori:
+                </span>
+                {[
+                  { id: "all", label: "Semua" },
+                  { id: "nik", label: "Angka NIK" },
+                  { id: "letters", label: "Huruf Nama/Teks" },
+                  { id: "blood", label: "Gol. Darah" },
+                  { id: "rtrw", label: "Format RT/RW" },
+                  { id: "labels", label: "Label Field KTP" },
+                  { id: "wilayah", label: "Typo Wilayah" },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setActiveCategory(cat.id as LookalikeCategory)}
+                    className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                      activeCategory === cat.id
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "bg-muted/50 hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left border-collapse">
                   <thead>
                     <tr className="border-b border-border text-muted-foreground bg-muted/40 font-mono">
-                      <th className="p-2.5 font-semibold">Target Bidang</th>
+                      <th className="p-2.5 font-semibold">Kategori</th>
+                      <th className="p-2.5 font-semibold">Target Bidang / Simbol</th>
                       <th className="p-2.5 font-semibold">Karakter OCR Masukan</th>
                       <th className="p-2.5 font-semibold">Hasil Normalisasi</th>
                       <th className="p-2.5 font-semibold">Alasan / Konteks Pemrosesan</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
-                    {lookalikeRules.map((r, i) => (
+                    {filteredRules.map((r, i) => (
                       <tr key={i} className="hover:bg-muted/20">
+                        <td className="p-2.5">
+                          <Badge variant="outline" className="text-[10px] capitalize">
+                            {r.category}
+                          </Badge>
+                        </td>
                         <td className="p-2.5 font-medium text-foreground">{r.target}</td>
                         <td className="p-2.5 font-mono text-amber-400 bg-amber-500/5">{r.input}</td>
                         <td className="p-2.5 font-mono font-bold text-emerald-400 bg-emerald-500/5">{r.output}</td>
