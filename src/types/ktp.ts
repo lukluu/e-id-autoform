@@ -78,7 +78,7 @@ export const emptyKtpData: KtpData = {
 };
 
 export const JENIS_KELAMIN = ["LAKI-LAKI", "PEREMPUAN"] as const;
-export const GOLONGAN_DARAH = ["A", "B", "AB", "O", "TIDAK DIKETAHUI"] as const;
+export const GOLONGAN_DARAH = ["-", "A", "B", "AB", "O", "TIDAK DIKETAHUI"] as const;
 export const AGAMA = [
   "ISLAM",
   "KRISTEN",

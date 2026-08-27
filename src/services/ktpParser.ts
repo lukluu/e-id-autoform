@@ -304,14 +304,14 @@ export function reconstructNik(
  * e.g. "PEREMPUAN Gol. Darah : O", "LAKI-LAKI Gol. Darah : 0", "LAKI-LAKI Gol. Darah : -"
  */
 function extractInlineGolDarah(value: string): { jenisKelamin: string; golDarah: string | null } {
-  const golMatch = /(?:GOL\.?\s*DARAH\s*[:=]?\s*)(AB|[AaBbOo0QqDd\-]|\b[0OAB]\b)/i.exec(value);
+  const golMatch = /(?:GOL\.?\s*DARAH\s*[:=]?\s*)(AB|[AaBbOo0QqDd\-]|\b[0OAB\-]\b|TIDAK\s+DIKETAHUI)/i.exec(value);
   if (golMatch) {
     const jk = value.slice(0, golMatch.index).trim();
     let gd = (golMatch[1] ?? "").toUpperCase().trim();
     // Jika terbaca angka 0, Q, atau D, maka itu pasti Golongan Darah O
     if (gd === "0" || gd === "Q" || gd === "D") gd = "O";
-    if (gd === "-") gd = "";
-    return { jenisKelamin: jk, golDarah: gd || null };
+    if (gd === "-" || gd === "--" || gd === "—" || gd === "–") gd = "-";
+    return { jenisKelamin: jk, golDarah: gd || "-" };
   }
   return { jenisKelamin: value, golDarah: null };
 }
@@ -534,13 +534,24 @@ export function parseKtpText(rawText: string, baseConfidence = 0.8): ParseOutcom
         );
         if (matched) set("jenisKelamin", matched, score);
         if (golDarah && !data.golonganDarah) {
-          const matchedGd = matchOption(golDarah, GOLONGAN_DARAH);
-          if (matchedGd) set("golonganDarah", matchedGd, score * 0.8);
+          let normalizedGd = golDarah;
+          if (normalizedGd === "0" || normalizedGd === "Q" || normalizedGd === "D") normalizedGd = "O";
+          if (normalizedGd === "-" || normalizedGd === "--" || normalizedGd === "—" || normalizedGd === "–") normalizedGd = "-";
+          const matchedGd = matchOption(normalizedGd, GOLONGAN_DARAH);
+          if (matchedGd) set("golonganDarah", matchedGd, score * 0.95);
+          else if (normalizedGd === "O" || normalizedGd === "A" || normalizedGd === "B" || normalizedGd === "AB" || normalizedGd === "-") {
+            set("golonganDarah", normalizedGd, score * 0.95);
+          }
         }
         break;
       }
       case "golonganDarah": {
-        let cleanGd = cleanValue(value).toUpperCase().replace(/^[:=_\s.-]+/, "").trim();
+        let cleanGd = cleanValue(value).toUpperCase().replace(/^[:=_\s.]+/, "").trim();
+        // Jika terbaca tanda strip -, simpan sebagai "-"
+        if (cleanGd === "-" || cleanGd === "--" || cleanGd === "—" || cleanGd === "–" || !cleanGd) {
+          set("golonganDarah", "-", score * 0.95);
+          break;
+        }
         // Jika terbaca angka 0, Q, D, maka itu pasti Golongan Darah O
         if (cleanGd === "0" || cleanGd === "Q" || cleanGd === "D" || cleanGd.startsWith("0") || cleanGd.startsWith("O")) {
           set("golonganDarah", "O", score * 0.95);
@@ -560,6 +571,7 @@ export function parseKtpText(rawText: string, baseConfidence = 0.8): ParseOutcom
         }
         const matched = matchOption(cleanGd, GOLONGAN_DARAH);
         if (matched) set("golonganDarah", matched, score * 0.85);
+        else set("golonganDarah", "-", score * 0.7);
         break;
       }
       case "alamat": {
@@ -729,6 +741,9 @@ export function parseKtpText(rawText: string, baseConfidence = 0.8): ParseOutcom
   }
   if (!data.berlakuHingga) {
     set("berlakuHingga", "SEUMUR HIDUP", 0.9);
+  }
+  if (!data.golonganDarah) {
+    set("golonganDarah", "-", 0.6);
   }
 
   if (!data.nik) warnings.push("NIK tidak terbaca. Silakan isi manual.");
