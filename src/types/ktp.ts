@@ -40,14 +40,7 @@ export interface OcrResult {
 }
 
 export type OcrStage =
-  | "idle"
-  | "prepare"
-  | "enhance"
-  | "read"
-  | "extract"
-  | "fill"
-  | "done"
-  | "error";
+  "idle" | "prepare" | "enhance" | "read" | "extract" | "fill" | "done" | "error";
 
 export interface OcrProgress {
   stage: OcrStage;
@@ -95,12 +88,7 @@ export const AGAMA = [
   "KONGHUCU",
   "LAINNYA",
 ] as const;
-export const STATUS_PERKAWINAN = [
-  "BELUM KAWIN",
-  "KAWIN",
-  "CERAI HIDUP",
-  "CERAI MATI",
-] as const;
+export const STATUS_PERKAWINAN = ["BELUM KAWIN", "KAWIN", "CERAI HIDUP", "CERAI MATI"] as const;
 export const KEWARGANEGARAAN = ["WNI", "WNA"] as const;
 
 /** KTP Indonesia: 85.60 x 53.98 mm */

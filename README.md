@@ -20,17 +20,17 @@ Aplikasi digunakan untuk:
 
 Gunakan:
 
-* React.js
-* Vite
-* TypeScript
-* Tailwind CSS
-* Lucide React untuk icon
-* React Hook Form untuk pengelolaan form
-* Zustand atau Context API untuk state management
-* OCR engine dibuat modular agar mudah dihubungkan dengan:
+- React.js
+- Vite
+- TypeScript
+- Tailwind CSS
+- Lucide React untuk icon
+- React Hook Form untuk pengelolaan form
+- Zustand atau Context API untuk state management
+- OCR engine dibuat modular agar mudah dihubungkan dengan:
 
-  * Tesseract.js untuk OCR lokal, atau
-  * API backend OCR seperti Node.js/Python/Flask/FastAPI
+  - Tesseract.js untuk OCR lokal, atau
+  - API backend OCR seperti Node.js/Python/Flask/FastAPI
 
 Gunakan struktur project yang rapi, scalable, reusable, dan mudah dikembangkan.
 
@@ -42,22 +42,22 @@ Buat halaman utama dengan area upload KTP yang mendukung 3 metode:
 
 Pengguna dapat:
 
-* Upload gambar JPG
-* JPEG
-* PNG
-* Drag and drop gambar
-* Melihat preview gambar sebelum diproses
+- Upload gambar JPG
+- JPEG
+- PNG
+- Drag and drop gambar
+- Melihat preview gambar sebelum diproses
 
 ### 2. Kamera Langsung
 
 Buat fitur kamera langsung menggunakan browser API:
 
-* Gunakan `navigator.mediaDevices.getUserMedia()`
-* Tampilkan live camera preview
-* Tombol Capture
-* Tombol ganti kamera jika device memiliki lebih dari satu kamera
-* Dukungan kamera depan dan belakang pada perangkat mobile
-* Setelah capture, gambar langsung masuk ke image editor
+- Gunakan `navigator.mediaDevices.getUserMedia()`
+- Tampilkan live camera preview
+- Tombol Capture
+- Tombol ganti kamera jika device memiliki lebih dari satu kamera
+- Dukungan kamera depan dan belakang pada perangkat mobile
+- Setelah capture, gambar langsung masuk ke image editor
 
 ### 3. External Webcam
 
@@ -65,14 +65,14 @@ Website harus dapat mendeteksi dan menggunakan webcam eksternal yang terhubung k
 
 Buat dropdown untuk memilih kamera:
 
-* Integrated Camera
-* External USB Webcam
-* Kamera lain yang tersedia
+- Integrated Camera
+- External USB Webcam
+- Kamera lain yang tersedia
 
 Gunakan:
 
 ```javascript
-navigator.mediaDevices.enumerateDevices()
+navigator.mediaDevices.enumerateDevices();
 ```
 
 untuk mendapatkan daftar kamera yang tersedia.
@@ -87,10 +87,10 @@ Pengguna harus dapat melakukan:
 
 Sediakan fitur crop dengan area crop yang dapat:
 
-* Digeser
-* Diperbesar
-* Diperkecil
-* Disesuaikan dengan ukuran KTP
+- Digeser
+- Diperbesar
+- Diperkecil
+- Disesuaikan dengan ukuran KTP
 
 Gunakan rasio KTP Indonesia:
 
@@ -104,14 +104,14 @@ atau gunakan aspect ratio sekitar:
 
 Sediakan tombol:
 
-* Rotate Left 90°
-* Rotate Right 90°
+- Rotate Left 90°
+- Rotate Right 90°
 
 Tambahkan slider untuk rotasi manual:
 
-* -180°
-* 0°
-* +180°
+- -180°
+- 0°
+- +180°
 
 Pengguna dapat memperbaiki posisi KTP jika gambar miring.
 
@@ -119,27 +119,27 @@ Pengguna dapat memperbaiki posisi KTP jika gambar miring.
 
 Tambahkan:
 
-* Zoom In
-* Zoom Out
-* Reset
+- Zoom In
+- Zoom Out
+- Reset
 
 ### Image Adjustment
 
 Tambahkan pengaturan opsional:
 
-* Brightness
-* Contrast
-* Grayscale
-* Sharpen
-* Reset Image
+- Brightness
+- Contrast
+- Grayscale
+- Sharpen
+- Reset Image
 
 Tujuannya agar teks pada KTP lebih mudah dibaca oleh OCR.
 
 Tambahkan tombol:
 
-* Batal
-* Reset
-* Gunakan Gambar
+- Batal
+- Reset
+- Gunakan Gambar
 
 Setelah pengguna selesai melakukan crop dan rotasi, gunakan hasil gambar tersebut untuk proses OCR.
 
@@ -169,22 +169,22 @@ OCR harus mencoba membaca dan mengisi data berikut:
 
 ### Data Utama
 
-* NIK
-* Nama
-* Tempat Lahir
-* Tanggal Lahir
-* Jenis Kelamin
-* Golongan Darah
-* Alamat
-* RT
-* RW
-* Kelurahan/Desa
-* Kecamatan
-* Agama
-* Status Perkawinan
-* Pekerjaan
-* Kewarganegaraan
-* Berlaku Hingga
+- NIK
+- Nama
+- Tempat Lahir
+- Tanggal Lahir
+- Jenis Kelamin
+- Golongan Darah
+- Alamat
+- RT
+- RW
+- Kelurahan/Desa
+- Kecamatan
+- Agama
+- Status Perkawinan
+- Pekerjaan
+- Kewarganegaraan
+- Berlaku Hingga
 
 ## Form Autofill
 
@@ -233,10 +233,10 @@ Berlaku Hingga
 
 Gunakan:
 
-* Input text
-* Select dropdown untuk data tertentu
-* Date picker untuk tanggal lahir
-* Validasi form
+- Input text
+- Select dropdown untuk data tertentu
+- Date picker untuk tanggal lahir
+- Validasi form
 
 ## Dropdown Data
 
@@ -244,45 +244,45 @@ Buat dropdown untuk:
 
 ### Jenis Kelamin
 
-* LAKI-LAKI
-* PEREMPUAN
+- LAKI-LAKI
+- PEREMPUAN
 
 ### Golongan Darah
 
-* A
-* B
-* AB
-* O
-* Tidak diketahui
+- A
+- B
+- AB
+- O
+- Tidak diketahui
 
 ### Agama
 
-* ISLAM
-* KRISTEN
-* KATOLIK
-* HINDU
-* BUDDHA
-* KONGHUCU
-* Lainnya
+- ISLAM
+- KRISTEN
+- KATOLIK
+- HINDU
+- BUDDHA
+- KONGHUCU
+- Lainnya
 
 ### Status Perkawinan
 
-* BELUM KAWIN
-* KAWIN
-* CERAI HIDUP
-* CERAI MATI
+- BELUM KAWIN
+- KAWIN
+- CERAI HIDUP
+- CERAI MATI
 
 ### Kewarganegaraan
 
-* WNI
-* WNA
+- WNI
+- WNA
 
 ### Berlaku Hingga
 
 Harus mendukung:
 
-* Tanggal tertentu
-* SEUMUR HIDUP
+- Tanggal tertentu
+- SEUMUR HIDUP
 
 ## Intelligent OCR Parsing
 
@@ -311,10 +311,10 @@ Berlaku Hingga : SEUMUR HIDUP
 
 Buat parser yang dapat:
 
-* Menghapus karakter yang tidak diperlukan
-* Menormalkan hasil OCR
-* Memperbaiki kesalahan umum OCR
-* Mengenali variasi label
+- Menghapus karakter yang tidak diperlukan
+- Menormalkan hasil OCR
+- Memperbaiki kesalahan umum OCR
+- Mengenali variasi label
 
 Contoh kesalahan OCR:
 
@@ -339,10 +339,10 @@ B ↔ 8
 
 Khusus untuk NIK, lakukan validasi:
 
-* Harus berisi 16 digit
-* Hapus karakter selain angka
-* Jangan memaksa hasil OCR jika jumlah digit tidak 16
-* Tampilkan status confidence atau warning jika NIK tidak valid
+- Harus berisi 16 digit
+- Hapus karakter selain angka
+- Jangan memaksa hasil OCR jika jumlah digit tidak 16
+- Tampilkan status confidence atau warning jika NIK tidak valid
 
 ## Provinsi dan Kabupaten/Kota
 
@@ -388,9 +388,9 @@ Form hasil OCR.
 
 Setiap field yang berhasil terbaca memiliki indikator:
 
-* High confidence
-* Medium confidence
-* Low confidence
+- High confidence
+- Medium confidence
+- Low confidence
 
 Contoh:
 
@@ -415,9 +415,9 @@ Buat layout:
 
 Berisi:
 
-* Logo aplikasi
-* Nama aplikasi: `KTP OCR Scanner`
-* Status kamera
+- Logo aplikasi
+- Nama aplikasi: `KTP OCR Scanner`
+- Status kamera
 
 ### Halaman Upload
 
@@ -473,10 +473,10 @@ Desktop:
 
 Mobile:
 
-* Layout berubah menjadi satu kolom.
-* Preview gambar di atas.
-* Form di bawah.
-* Semua tombol mudah digunakan dengan touchscreen.
+- Layout berubah menjadi satu kolom.
+- Preview gambar di atas.
+- Form di bawah.
+- Semua tombol mudah digunakan dengan touchscreen.
 
 ## Component Structure
 
@@ -569,14 +569,14 @@ Tambahkan validasi:
 
 ### NIK
 
-* Harus 16 digit.
-* Hanya angka.
-* Tampilkan error jika tidak valid.
+- Harus 16 digit.
+- Hanya angka.
+- Tampilkan error jika tidak valid.
 
 ### RT/RW
 
-* Maksimal 3 digit per field.
-* Otomatis tambahkan leading zero jika diperlukan.
+- Maksimal 3 digit per field.
+- Otomatis tambahkan leading zero jika diperlukan.
 
 Contoh:
 
@@ -600,14 +600,14 @@ Namun internal state dapat menggunakan format ISO.
 
 Tangani kondisi:
 
-* Kamera tidak tersedia.
-* Permission kamera ditolak.
-* Tidak ada webcam.
-* Gagal mengambil gambar.
-* OCR gagal membaca teks.
-* Gambar terlalu buram.
-* Gambar bukan KTP.
-* NIK tidak valid.
+- Kamera tidak tersedia.
+- Permission kamera ditolak.
+- Tidak ada webcam.
+- Gagal mengambil gambar.
+- OCR gagal membaca teks.
+- Gambar terlalu buram.
+- Gambar bukan KTP.
+- NIK tidak valid.
 
 Tampilkan pesan error yang jelas dan user-friendly.
 
@@ -615,13 +615,13 @@ Tampilkan pesan error yang jelas dan user-friendly.
 
 Karena KTP mengandung data pribadi sensitif:
 
-* Jangan menyimpan gambar secara permanen secara default.
-* Proses gambar secara lokal jika memungkinkan.
-* Jangan mengirim data ke server tanpa persetujuan pengguna.
-* Sediakan tombol `Hapus Data`.
-* Setelah halaman direfresh, data sebaiknya dapat dibersihkan.
-* Jangan menampilkan data KTP di console log production.
-* Jangan menyimpan data sensitif ke localStorage secara default.
+- Jangan menyimpan gambar secara permanen secara default.
+- Proses gambar secara lokal jika memungkinkan.
+- Jangan mengirim data ke server tanpa persetujuan pengguna.
+- Sediakan tombol `Hapus Data`.
+- Setelah halaman direfresh, data sebaiknya dapat dibersihkan.
+- Jangan menampilkan data KTP di console log production.
+- Jangan menyimpan data sensitif ke localStorage secara default.
 
 ## Output yang Diharapkan
 

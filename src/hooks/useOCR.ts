@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useKtpStore } from "@/store/ktpStore";
-import { mockEngine, runOcr } from "@/services/ocrService";
+import { runOcr } from "@/services/ocrService";
 import type { OcrStage } from "@/types/ktp";
 
 const STAGE_MESSAGE: Record<OcrStage, string> = {
@@ -20,7 +20,6 @@ export function useOCR() {
   const setOcrOutput = useKtpStore((s) => s.setOcrOutput);
   const setError = useKtpStore((s) => s.setError);
   const setStep = useKtpStore((s) => s.setStep);
-  const useMockEngine = useKtpStore((s) => s.useMockEngine);
 
   const scan = useCallback(
     async (imageDataUrl: string) => {
@@ -29,7 +28,6 @@ export function useOCR() {
       setProgress({ stage: "prepare", progress: 2, message: STAGE_MESSAGE.prepare });
       try {
         const result = await runOcr(imageDataUrl, {
-          engine: useMockEngine ? mockEngine : undefined,
           onStage: (stage, progress) =>
             setProgress({ stage, progress, message: STAGE_MESSAGE[stage] }),
         });
@@ -52,7 +50,7 @@ export function useOCR() {
         setIsRunning(false);
       }
     },
-    [setError, setOcrOutput, setProgress, setStep, useMockEngine],
+    [setError, setOcrOutput, setProgress, setStep],
   );
 
   return { scan, isRunning };

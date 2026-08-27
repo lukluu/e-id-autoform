@@ -18,7 +18,11 @@ export function ImagePreview({ src, title = "Preview KTP", caption }: ImagePrevi
       <CardContent className="space-y-2">
         <div className="overflow-hidden rounded-lg bg-editor-canvas p-2">
           {src ? (
-            <img src={src} alt="Hasil pemindaian KTP" className="w-full rounded-md object-contain" />
+            <img
+              src={src}
+              alt="Hasil pemindaian KTP"
+              className="w-full rounded-md object-contain"
+            />
           ) : (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               Belum ada gambar

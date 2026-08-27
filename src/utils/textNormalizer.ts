@@ -3,21 +3,52 @@
 const DIGIT_LOOKALIKE: Record<string, string> = {
   O: "0",
   o: "0",
-  D: "0",
-  Q: "0",
   I: "1",
   i: "1",
   l: "1",
   L: "1",
   "|": "1",
-  Z: "2",
-  z: "2",
   S: "5",
   s: "5",
   B: "8",
+};
+
+/**
+ * Extended mapping used ONLY when we know the context is numeric (NIK, RT/RW).
+ * Includes aggressive substitutions that would corrupt text fields.
+ */
+const DIGIT_LOOKALIKE_AGGRESSIVE: Record<string, string> = {
+  ...DIGIT_LOOKALIKE,
+  D: "0",
+  d: "0",
+  Q: "0",
+  q: "9",
+  Z: "2",
+  z: "2",
   G: "6",
+  g: "9",
+  b: "6",
   T: "7",
+  t: "7",
   A: "4",
+  a: "4",
+  F: "7",
+  f: "7",
+  H: "4",
+  h: "4",
+  "?": "7",
+  "/": "7",
+  ">": "7",
+  "%": "1",
+  "&": "8",
+  $: "5",
+  "!": "1",
+  "]": "1",
+  "[": "1",
+  "}": "1",
+  "{": "1",
+  ")": "1",
+  "(": "1",
 };
 
 const LETTER_LOOKALIKE: Record<string, string> = {
@@ -32,7 +63,7 @@ const LETTER_LOOKALIKE: Record<string, string> = {
 /** Hapus karakter aneh, rapatkan spasi, dan seragamkan huruf besar. */
 export function normalizeLine(line: string): string {
   return line
-    .replace(/[^\p{L}\p{N}\s:,./|'"()-]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s:,./=|'"()-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -54,6 +85,18 @@ export function toDigits(value: string): string {
     .replace(/\D/g, "");
 }
 
+/**
+ * Versi agresif dari toDigits — gunakan hanya ketika konteks pasti numerik
+ * (NIK, RT/RW). Mapping A→4, T→7, dll. akan merusak field teks.
+ */
+export function toDigitsAggressive(value: string): string {
+  return value
+    .split("")
+    .map((c) => (/\d/.test(c) ? c : (DIGIT_LOOKALIKE_AGGRESSIVE[c] ?? c)))
+    .join("")
+    .replace(/\D/g, "");
+}
+
 /** Ubah angka yang seharusnya huruf (umum pada nama/tempat). */
 export function toLetters(value: string): string {
   return value
@@ -62,11 +105,11 @@ export function toLetters(value: string): string {
     .join("");
 }
 
-/** Bersihkan nilai field: buang sisa titik dua, tanda baca menggantung. */
+/** Bersihkan nilai field: buang sisa titik dua, tanda kutip, tanda baca menggantung. */
 export function cleanValue(value: string): string {
   return value
-    .replace(/^[\s:;.\-–—|]+/, "")
-    .replace(/[\s:;.\-–—|]+$/, "")
+    .replace(/^[\s:;.\-–—|=“"”'‘`]+/, "")
+    .replace(/[\s:;.\-–—|=“"”'‘`]+$/, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -92,13 +135,17 @@ export function similarity(a: string, b: string): number {
     }
   }
   return 1 - d[s.length * w + t.length]! / Math.max(s.length, t.length);
-
 }
 
 /** Cocokkan sebuah nilai ke daftar opsi yang diperbolehkan. */
 export function matchOption(value: string, options: readonly string[]): string | undefined {
   const clean = cleanValue(value).toUpperCase();
   if (!clean) return undefined;
+  const exactToken = options.find((option) => {
+    const escaped = option.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|\\s)${escaped}(?=\\s|$)`).test(clean);
+  });
+  if (exactToken) return exactToken;
   let best: { option: string; score: number } | undefined;
   for (const option of options) {
     const score = similarity(clean, option);

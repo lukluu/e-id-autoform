@@ -34,8 +34,7 @@ export function useImageEditor() {
   }, []);
 
   const render = useCallback(
-    (src: string) =>
-      renderProcessedImage(src, { rotation, crop, adjustments, maxWidth: 2000 }),
+    (src: string) => renderProcessedImage(src, { rotation, crop, adjustments, maxWidth: 2000 }),
     [rotation, crop, adjustments],
   );
 

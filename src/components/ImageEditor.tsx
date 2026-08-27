@@ -75,7 +75,10 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
 
             <div className="space-y-4 rounded-xl border border-border bg-muted/25 p-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="lock-aspect" className="text-xs uppercase tracking-wide text-muted-foreground">
+                <Label
+                  htmlFor="lock-aspect"
+                  className="text-xs uppercase tracking-wide text-muted-foreground"
+                >
                   Kunci rasio KTP
                 </Label>
                 <Switch id="lock-aspect" checked={lockAspect} onCheckedChange={setLockAspect} />
@@ -86,15 +89,35 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
 
               <Separator />
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Zoom</Label>
+                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Zoom
+                </Label>
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" className="flex-1" onClick={editor.zoomOut}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={editor.zoomOut}
+                  >
                     <ZoomOut className="size-4" />
                   </Button>
-                  <Button type="button" variant="outline" size="sm" className="flex-1" onClick={editor.zoomIn}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={editor.zoomIn}
+                  >
                     <ZoomIn className="size-4" />
                   </Button>
-                  <Button type="button" variant="outline" size="sm" className="flex-1" onClick={editor.resetZoom}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={editor.resetZoom}
+                  >
                     <RotateCcw className="size-4" />
                   </Button>
                 </div>
@@ -129,7 +152,10 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
                   onValueChange={(v) => editor.setAdjustment("contrast", v[0] ?? 100)}
                 />
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="grayscale" className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+                  <Label
+                    htmlFor="grayscale"
+                    className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                  >
                     <Droplets className="size-3.5" /> Grayscale
                   </Label>
                   <Switch
@@ -139,7 +165,10 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="sharpen" className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+                  <Label
+                    htmlFor="sharpen"
+                    className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                  >
                     <Wand2 className="size-3.5" /> Sharpen
                   </Label>
                   <Switch

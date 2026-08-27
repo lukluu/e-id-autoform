@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Home } from "@/pages/Home";
 
-const title = "KTP OCR Scanner — Pindai & Isi Otomatis Data KTP";
+const title = "KTP OCR Scanner — Pindai & Isi Otomatis Data KTP Terenkripsi";
 const description =
-  "Pindai KTP Indonesia lewat unggahan gambar atau kamera, ekstrak NIK, nama, dan alamat dengan OCR, lalu isi form otomatis. Diproses lokal di browser.";
+  "Pindai KTP Indonesia lewat OCR, enkripsi Blowfish 64-bit, dan integrasi database Neon Serverless PostgreSQL.";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,6 +16,6 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Home,
   ssr: false,
+  component: Home,
 });

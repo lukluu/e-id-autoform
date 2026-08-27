@@ -22,7 +22,10 @@ export function Header({ cameraAvailable, onReset }: HeaderProps) {
             Pindai, ekstrak, dan isi data KTP secara otomatis
           </p>
         </div>
-        <Badge variant={cameraAvailable ? "secondary" : "outline"} className="hidden gap-1.5 sm:flex">
+        <Badge
+          variant={cameraAvailable ? "secondary" : "outline"}
+          className="hidden gap-1.5 sm:flex"
+        >
           {cameraAvailable ? <Camera className="size-3.5" /> : <CameraOff className="size-3.5" />}
           {cameraAvailable ? "Kamera terdeteksi" : "Kamera tidak tersedia"}
         </Badge>

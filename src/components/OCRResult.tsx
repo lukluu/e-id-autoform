@@ -6,42 +6,49 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ImagePreview } from "@/components/ImagePreview";
 import { KtpForm } from "@/components/KtpForm";
-import type { ConfidenceMap, KtpData } from "@/types/ktp";
+import type { KtpData } from "@/types/ktp";
 import { isValidNik } from "@/utils/validation";
 
 interface OCRResultProps {
   image: string | null;
   data: KtpData;
-  confidences: ConfidenceMap;
   rawText: string;
   warnings: string[];
-  onSubmitData: (values: KtpData) => void;
+  onSubmitData: (values: KtpData, secretKey: string) => void;
   onRescan: () => void;
   onClear: () => void;
+  isEncrypting?: boolean | undefined;
+  secretKey: string;
+  setSecretKey: (val: string) => void;
+  showKey: boolean;
+  setShowKey: (val: boolean | ((prev: boolean) => boolean)) => void;
+  keyError: string | null;
+  setKeyError: (val: string | null) => void;
 }
 
 export function OCRResult({
   image,
   data,
-  confidences,
   rawText,
   warnings,
   onSubmitData,
   onRescan,
   onClear,
+  isEncrypting,
+  secretKey,
+  setSecretKey,
+  showKey,
+  setShowKey,
+  keyError,
+  setKeyError,
 }: OCRResultProps) {
   const [showRaw, setShowRaw] = useState(false);
-  const values = Object.values(confidences);
-  const overall = values.length
-    ? Math.round((values.reduce((s, c) => s + c.confidence, 0) / values.length) * 100)
-    : 0;
   const nikValid = isValidNik(data.nik);
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl font-semibold tracking-tight">Hasil OCR</h2>
-        <Badge variant="secondary">Rata-rata confidence {overall}%</Badge>
         <Badge variant={nikValid ? "secondary" : "destructive"}>
           {nikValid ? "NIK valid (16 digit)" : "NIK belum valid"}
         </Badge>
@@ -82,7 +89,9 @@ export function OCRResult({
                 <span className="flex items-center gap-2 text-sm font-medium">
                   <FileText className="size-4" /> Teks OCR mentah
                 </span>
-                <ChevronDown className={`size-4 transition-transform ${showRaw ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`size-4 transition-transform ${showRaw ? "rotate-180" : ""}`}
+                />
               </Button>
               {showRaw && (
                 <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-[11px] leading-relaxed text-muted-foreground">
@@ -99,10 +108,16 @@ export function OCRResult({
 
         <KtpForm
           data={data}
-          confidences={confidences}
           onSubmitData={onSubmitData}
-          onReset={() => onSubmitData(data)}
+          onReset={() => onSubmitData(data, secretKey)}
           onClear={onClear}
+          isEncrypting={isEncrypting}
+          secretKey={secretKey}
+          setSecretKey={setSecretKey}
+          showKey={showKey}
+          setShowKey={setShowKey}
+          keyError={keyError}
+          setKeyError={setKeyError}
         />
       </div>
     </div>

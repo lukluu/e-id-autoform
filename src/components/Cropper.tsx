@@ -132,13 +132,20 @@ export function Cropper({
   };
 
   return (
-    <div className="flex w-full items-center justify-center overflow-hidden rounded-xl bg-editor-canvas p-3 sm:p-6">
+    <div className="flex min-h-[260px] w-full max-h-[65vh] items-center justify-center overflow-hidden rounded-xl bg-editor-canvas p-2 sm:p-4">
       <div
         ref={stageRef}
-        className="relative max-h-[52vh] w-full select-none"
-        style={{ aspectRatio: String(stageAspect), transform: `scale(${zoom})` }}
+        className="relative select-none"
+        style={{
+          aspectRatio: String(stageAspect),
+          width: `min(100%, calc(58vh * ${stageAspect}))`,
+          maxWidth: "100%",
+          maxHeight: "58vh",
+          transform: `scale(${zoom})`,
+          transformOrigin: "center center",
+        }}
       >
-        <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden rounded-lg">
           <img
             src={src}
             alt="Pratinjau KTP"
@@ -160,7 +167,7 @@ export function Cropper({
 
         {/* Overlay gelap di luar area crop */}
         <div
-          className="pointer-events-none absolute inset-0"
+          className="pointer-events-none absolute inset-0 rounded-lg"
           style={{
             boxShadow: "0 0 0 9999px rgba(2, 12, 22, 0.55) inset",
             clipPath: `polygon(0% 0%,0% 100%,${crop.x * 100}% 100%,${crop.x * 100}% ${crop.y * 100}%,${(crop.x + crop.width) * 100}% ${crop.y * 100}%,${(crop.x + crop.width) * 100}% ${(crop.y + crop.height) * 100}%,${crop.x * 100}% ${(crop.y + crop.height) * 100}%,${crop.x * 100}% 100%,100% 100%,100% 0%)`,

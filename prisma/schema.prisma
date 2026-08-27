@@ -1,0 +1,116 @@
+// =========================================================================
+// PRISMA SCHEMA DEFINITION FOR NEON POSTGRESQL CLOUD DATABASE
+// Application: Blowfish E-ID KTP Autoform & OCR Security
+// Format ID: Standard UUID v4
+// =========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// -------------------------------------------------------------------------
+// 1. MODEL PENGGUNA (users)
+// Sesuai spesifikasi struktur tabel pengguna:
+// - id: UUID (Primary Key)
+// - name: VARCHAR(100) [Wajib saat registrasi]
+// - email: VARCHAR(100) (Unique) [Wajib saat registrasi]
+// - username: VARCHAR(50) (Unique) [Opsional]
+// - password: VARCHAR(255) [Wajib saat registrasi - Hash Password]
+// - phone: VARCHAR(20) [Opsional]
+// - address: TEXT [Opsional]
+// - role: VARCHAR(30) [Default: user]
+// - avatar: VARCHAR(255) [Opsional]
+// - email_verified_at: TIMESTAMP [Opsional]
+// - created_at: TIMESTAMP [Default: now()]
+// - updated_at: TIMESTAMP [Auto Update]
+// -------------------------------------------------------------------------
+model User {
+  id              String    @id @default(uuid())
+  name            String    @db.VarChar(100)
+  email           String    @unique @db.VarChar(100)
+  username        String?   @unique @db.VarChar(50)
+  password        String    @db.VarChar(255)
+  phone           String?   @db.VarChar(20)
+  address         String?   @db.Text
+  role            String    @default("user") @db.VarChar(30)
+  avatar          String?   @db.VarChar(255)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  encryptedKtps   EncryptedKtp[]
+
+  @@index([email], name: "idx_users_email")
+  @@index([username], name: "idx_users_username")
+  @@map("users")
+}
+
+// -------------------------------------------------------------------------
+// 2. MODEL DOKUMEN KTP TERENKRIPSI BLOWFISH (encrypted_ktp)
+// Setiap field formulir KTP tersimpan dalam bentuk ciphertext terenkripsi
+// -------------------------------------------------------------------------
+model EncryptedKtp {
+  id               String   @id @default(uuid())
+  userId           String?  @map("user_id")
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provinsi         String   @default("")
+  kabupatenKota    String   @default("") @map("kabupaten_kota")
+  nik              String   @default("")
+  nama             String   @default("")
+  tempatLahir      String   @default("") @map("tempat_lahir")
+  tanggalLahir     String   @default("") @map("tanggal_lahir")
+  jenisKelamin     String   @default("") @map("jenis_kelamin")
+  golonganDarah    String   @default("") @map("golongan_darah")
+  alamat           String   @default("")
+  rt               String   @default("")
+  rw               String   @default("")
+  kelurahanDesa    String   @default("") @map("kelurahan_desa")
+  kecamatan        String   @default("")
+  agama            String   @default("")
+  statusPerkawinan String   @default("") @map("status_perkawinan")
+  pekerjaan        String   @default("")
+  kewarganegaraan  String   @default("")
+  berlakuHingga    String   @default("") @map("berlaku_hingga")
+  iv               String   // Initialization Vector (64-bit Hex)
+  keyChecksum      String   @map("key_checksum") // Hash verifikasi kecocokan kunci
+  keyHint          String?  @map("key_hint") // Petunjuk kunci rahasia jika lupa
+  displayNama      String?  @map("display_nama") // Nama subjek untuk label list
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt], name: "idx_encrypted_ktp_created")
+  @@index([userId], name: "idx_encrypted_ktp_user")
+  @@map("encrypted_ktp")
+}
+
+// -------------------------------------------------------------------------
+// 3. MODEL KODE PEMULIHAN & OTP (recovery_codes)
+// -------------------------------------------------------------------------
+model RecoveryCode {
+  id        String   @id @default(uuid())
+  type      String   // PASSWORD_RESET atau KEY_RECOVERY
+  email     String
+  code      String
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+
+  @@index([email, code, type], name: "idx_recovery_email_code")
+  @@map("recovery_codes")
+}
+
+// -------------------------------------------------------------------------
+// 4. MODEL PENGATURAN APLIKASI (app_settings)
+// -------------------------------------------------------------------------
+model AppSetting {
+  settingKey   String   @id @map("setting_key")
+  settingValue String   @map("setting_value")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}

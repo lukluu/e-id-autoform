@@ -1,96 +1,60 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Header } from "@/components/Header";
-import { UploadKtp } from "@/components/UploadKtp";
-import { ImageEditor } from "@/components/ImageEditor";
-import { OCRProgress } from "@/components/OCRProgress";
-import { OCRResult } from "@/components/OCRResult";
-import { useKtpStore } from "@/store/ktpStore";
-import { useOCR } from "@/hooks/useOCR";
-import type { KtpData } from "@/types/ktp";
+import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { DashboardPage } from "@/pages/DashboardPage";
+import { authService } from "@/services/authService";
 
 export function Home() {
-  const store = useKtpStore();
-  const { scan, isRunning } = useOCR();
-  const [cameraAvailable, setCameraAvailable] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
+  const [authReady, setAuthReady] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) return;
-    void navigator.mediaDevices
-      .enumerateDevices()
-      .then((devices) => setCameraAvailable(devices.some((d) => d.kind === "videoinput")))
-      .catch(() => setCameraAvailable(false));
-  }, []);
+    const unsub = authService.subscribe((user) => {
+      const authed = Boolean(user);
+      setIsAuthenticated(authed);
+      setAuthReady(true);
+      if (!authed) {
+        void navigate({ to: "/login" });
+      }
+    });
 
-  const handleImageReady = useCallback(
-    (dataUrl: string) => {
-      store.setSourceImage(dataUrl);
-      store.setError(null);
-      store.setStep("editor");
-    },
-    [store],
-  );
+    void authService.validateSession().then((validUser) => {
+      setAuthReady(true);
+      if (!validUser) {
+        void navigate({ to: "/login" });
+      }
+    });
 
-  const handleConfirmImage = useCallback(
-    async (dataUrl: string) => {
-      store.setProcessedImage(dataUrl);
-      await scan(dataUrl);
-    },
-    [scan, store],
-  );
+    return () => unsub();
+  }, [navigate]);
 
-  const handleSubmitData = useCallback((values: KtpData) => store.setData(values), [store]);
+  // Loading state saat verifikasi sesi pertama kali
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const showProgress =
-    isRunning || (store.step === "editor" && store.progress.stage !== "idle" && store.progress.stage !== "error");
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header cameraAvailable={cameraAvailable} onReset={store.reset} />
-
-      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
-        {store.error && (
-          <Alert variant="destructive" className="mx-auto mb-4 max-w-3xl">
-            <AlertTriangle className="size-4" />
-            <AlertTitle>Proses OCR gagal</AlertTitle>
-            <AlertDescription>{store.error}</AlertDescription>
-          </Alert>
-        )}
-
-        {store.step === "upload" && (
-          <UploadKtp
-            onImageReady={handleImageReady}
-            useMockEngine={store.useMockEngine}
-            onToggleMock={store.toggleMockEngine}
-          />
-        )}
-
-        {store.step === "editor" && store.sourceImage && (
-          <div className="space-y-5">
-            <ImageEditor
-              src={store.sourceImage}
-              busy={isRunning}
-              onCancel={store.reset}
-              onConfirm={(dataUrl) => void handleConfirmImage(dataUrl)}
-            />
-            {showProgress && <OCRProgress progress={store.progress} />}
-          </div>
-        )}
-
-        {store.step === "result" && (
-          <OCRResult
-            image={store.processedImage}
-            data={store.data}
-            confidences={store.confidences}
-            rawText={store.rawText}
-            warnings={store.warnings}
-            onSubmitData={handleSubmitData}
-            onRescan={() => store.setStep("editor")}
-            onClear={store.reset}
-          />
-        )}
-      </main>
-    </div>
+    <AppLayout activeTab="dashboard">
+      <DashboardPage
+        onNavigate={(tab) => {
+          if (tab === "ocr") void navigate({ to: "/ocr" });
+          else if (tab === "decrypt") void navigate({ to: "/decrypt" });
+          else if (tab === "security") void navigate({ to: "/security" });
+          else if (tab === "settings") void navigate({ to: "/settings" });
+        }}
+      />
+    </AppLayout>
   );
 }

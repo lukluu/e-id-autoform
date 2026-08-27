@@ -1,57 +1,76 @@
 import type { OcrEngine, OcrResult } from "@/types/ktp";
-import { parseKtpText } from "@/services/ktpParser";
+import { parseKtpText, enrichWithWilayah } from "@/services/ktpParser";
 import { enhanceForOcr } from "@/utils/imageProcessor";
 
-/**
- * OCR dibuat modular: seluruh aplikasi hanya memanggil `runOcr`.
- * Untuk berpindah ke backend (Node/Flask/FastAPI), cukup panggil
- * `setOcrEngine(createApiEngine("https://api.example.com/ocr"))`.
- */
+// Helper to reliably obtain a browser-compatible Tesseract instance
+async function getBrowserTesseract(): Promise<any> {
+  if (typeof window !== "undefined" && (window as any).Tesseract) {
+    return (window as any).Tesseract;
+  }
+
+  // 1. Coba load dari CDN via script tag (browser-safe, tidak ada error CJS require)
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      return reject(new Error("Lingkungan bukan browser"));
+    }
+
+    if ((window as any).Tesseract) {
+      return resolve((window as any).Tesseract);
+    }
+
+    const existingScript = document.querySelector('script[src*="tesseract.min.js"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", () => {
+        resolve((window as any).Tesseract);
+      });
+      existingScript.addEventListener("error", () => {
+        reject(new Error("Gagal menginisialisasi pustaka Tesseract OCR"));
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    script.onload = () => {
+      if ((window as any).Tesseract) {
+        resolve((window as any).Tesseract);
+      } else {
+        reject(new Error("Pustaka Tesseract berhasil diunduh namun objek tidak ditemukan"));
+      }
+    };
+    script.onerror = () => {
+      // Fallback ke unpkg jika jsdelivr terkendala
+      const fallbackScript = document.createElement("script");
+      fallbackScript.src = "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js";
+      fallbackScript.async = true;
+      fallbackScript.onload = () => resolve((window as any).Tesseract);
+      fallbackScript.onerror = () => reject(new Error("Gagal memuat pustaka OCR dari CDN"));
+      document.head.appendChild(fallbackScript);
+    };
+    document.head.appendChild(script);
+  });
+}
 
 export const tesseractEngine: OcrEngine = {
   name: "tesseract",
   async recognize(image, onProgress) {
-    const { default: Tesseract } = await import("tesseract.js");
+    const Tesseract = await getBrowserTesseract();
+
     const result = await Tesseract.recognize(image, "ind+eng", {
       logger: (m: { status: string; progress: number }) => {
         if (m.status === "recognizing text") {
           onProgress(m.progress, "Membaca teks KTP");
+        } else if (m.status === "loading tesseract core" || m.status === "loading language traineddata") {
+          onProgress(0.15, "Memuat model bahasa OCR...");
         }
       },
     });
+
     return {
       text: result.data.text,
       confidence: Math.max(0, Math.min(1, (result.data.confidence ?? 70) / 100)),
-    };
-  },
-};
-
-/** Engine tiruan agar aplikasi bisa diuji tanpa backend / tanpa unduhan model. */
-export const mockEngine: OcrEngine = {
-  name: "mock",
-  async recognize(_image, onProgress) {
-    const steps = [0.2, 0.45, 0.7, 0.9, 1];
-    for (const step of steps) {
-      await new Promise((r) => setTimeout(r, 260));
-      onProgress(step, "Membaca teks KTP");
-    }
-    return {
-      text: `PROVINSI SULAWESI TENGGARA
-KOTA KENDARI
-NIK : 7371234509870001
-Nama : LUKMAN ODE
-Tempat/Tgl Lahir : KENDARI, 01-01-2000
-Jenis Kelamin : LAKI-LAKI      Gol. Darah : O
-Alamat : JL. CONTOH NO 123
-RT/RW : 001/002
-Kel/Desa : BARABARAYA
-Kecamatan : KENDARI BARAT
-Agama : ISLAM
-Status Perkawinan : BELUM KAWIN
-Pekerjaan : PROGRAMMER
-Kewarganegaraan : WNI
-Berlaku Hingga : SEUMUR HIDUP`,
-      confidence: 0.92,
     };
   },
 };
@@ -106,8 +125,19 @@ export async function runOcr(dataUrl: string, options: RunOcrOptions): Promise<O
     throw new Error("OCR tidak menemukan teks apa pun pada gambar.");
   }
 
-  options.onStage("extract", 88);
+  options.onStage("extract", 85);
   const parsed = parseKtpText(text, Math.max(0.55, confidence));
+
+  // Enrich with wilayah API reverse lookup (async)
+  options.onStage("fill", 92);
+  try {
+    const wilayahUpdates = await enrichWithWilayah(parsed.data);
+    if (Object.keys(wilayahUpdates).length > 0) {
+      Object.assign(parsed.data, wilayahUpdates);
+    }
+  } catch {
+    // Wilayah API failed — continue with what we have
+  }
 
   options.onStage("fill", 98);
   const values = Object.values(parsed.confidences);

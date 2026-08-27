@@ -70,10 +70,7 @@ export interface RenderOptions {
  * Render gambar sumber dengan rotasi, crop, dan penyesuaian menjadi data URL.
  * Rotasi diterapkan lebih dulu, lalu crop dihitung terhadap gambar hasil rotasi.
  */
-export async function renderProcessedImage(
-  src: string,
-  options: RenderOptions,
-): Promise<string> {
+export async function renderProcessedImage(src: string, options: RenderOptions): Promise<string> {
   const img = await loadImage(src);
   const rad = (options.rotation * Math.PI) / 180;
   const cos = Math.abs(Math.cos(rad));
@@ -112,27 +109,76 @@ export async function renderProcessedImage(
   return out.toDataURL("image/png");
 }
 
-/** Pra-proses tambahan untuk OCR: upscale + grayscale + binarisasi ringan. */
+/** Pra-proses tambahan untuk OCR: upscale + brightness tinggi + kontras rendah + sharpen otomatis. */
 export async function enhanceForOcr(dataUrl: string): Promise<Blob> {
   const img = await loadImage(dataUrl);
-  const targetWidth = Math.min(1800, Math.max(1200, img.width));
+
+  // 1. Upscale — gambar kecil/kabur perlu resolusi lebih tinggi agar OCR akurat
+  const targetWidth = Math.min(2800, Math.max(1800, img.width * 1.5));
   const scale = targetWidth / img.width;
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(img.width * scale);
   canvas.height = Math.round(img.height * scale);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas tidak didukung browser ini.");
+
+  // 2. Brightness NAIK (130%) + Contrast TURUN (85%) — optimal untuk KTP Indonesia
+  //    Tulisan hitam di background biru cerah perlu brightness tinggi agar kontras teks
+  //    terhadap background tidak hilang. Kontras 85% cegah halation/blooming di area terang.
+  ctx.filter = "brightness(130%) contrast(85%)";
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  ctx.filter = "none";
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const d = imageData.data;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // 3. Konversi grayscale (luminosity weights) + boost kontras lokal
   for (let i = 0; i < d.length; i += 4) {
-    const gray = 0.299 * (d[i] ?? 0) + 0.587 * (d[i + 1] ?? 0) + 0.114 * (d[i + 2] ?? 0);
-    const boosted = Math.min(255, Math.max(0, (gray - 128) * 1.35 + 128));
-    d[i] = boosted;
-    d[i + 1] = boosted;
-    d[i + 2] = boosted;
+    // Luminosity: bobot standar BT.601
+    const gray =
+      0.299 * (d[i] ?? 0) + 0.587 * (d[i + 1] ?? 0) + 0.114 * (d[i + 2] ?? 0);
+    // Stretch kontras: pull shadows down, highlights up
+    // Formula: (v - 128) * factor + 128 | factor 1.2 = peningkatan ringan
+    const stretched = Math.min(255, Math.max(0, (gray - 128) * 1.2 + 128));
+    d[i] = stretched;
+    d[i + 1] = stretched;
+    d[i + 2] = stretched;
   }
+
+  // 4. Unsharp Mask (sharpen kuat) — kernel pusat 6 agar tepi huruf lebih tajam
+  //    Ini setara dengan "Sharpen" di Photoshop dengan amount sedang
+  const sharp = new Uint8ClampedArray(d.length);
+  const kernel = [0, -1, 0, -1, 6, -1, 0, -1, 0];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const px = Math.min(w - 1, Math.max(0, x + kx));
+          const py = Math.min(h - 1, Math.max(0, y + ky));
+          sum += (d[(py * w + px) * 4] ?? 0) * (kernel[(ky + 1) * 3 + (kx + 1)] ?? 0);
+        }
+      }
+      const sharpened = Math.min(255, Math.max(0, sum));
+      const idx = (y * w + x) * 4;
+      sharp[idx] = sharpened;
+      sharp[idx + 1] = sharpened;
+      sharp[idx + 2] = sharpened;
+      sharp[idx + 3] = d[idx + 3] ?? 255;
+    }
+  }
+
+  // 5. Denoise ringan: blend 70% sharp + 30% original grayscale
+  //    Mengurangi noise piksel tanpa mengaburkan tepi huruf
+  for (let i = 0; i < d.length; i += 4) {
+    const blended = Math.round((sharp[i] ?? 0) * 0.7 + (d[i] ?? 0) * 0.3);
+    d[i] = blended;
+    d[i + 1] = blended;
+    d[i + 2] = blended;
+  }
+
   ctx.putImageData(imageData, 0, 0);
 
   return await new Promise<Blob>((resolve, reject) => {
@@ -142,6 +188,7 @@ export async function enhanceForOcr(dataUrl: string): Promise<Blob> {
     );
   });
 }
+
 
 export function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

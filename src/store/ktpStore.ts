@@ -1,10 +1,5 @@
 import { create } from "zustand";
-import {
-  emptyKtpData,
-  type ConfidenceMap,
-  type KtpData,
-  type OcrProgress,
-} from "@/types/ktp";
+import { emptyKtpData, type ConfidenceMap, type KtpData, type OcrProgress } from "@/types/ktp";
 
 export type AppStep = "upload" | "editor" | "result";
 
@@ -20,7 +15,6 @@ interface KtpState {
   warnings: string[];
   progress: OcrProgress;
   error: string | null;
-  useMockEngine: boolean;
 
   setStep: (step: AppStep) => void;
   setSourceImage: (image: string | null) => void;
@@ -34,7 +28,6 @@ interface KtpState {
   }) => void;
   setProgress: (progress: OcrProgress) => void;
   setError: (error: string | null) => void;
-  toggleMockEngine: (value: boolean) => void;
   reset: () => void;
 }
 
@@ -50,7 +43,6 @@ export const useKtpStore = create<KtpState>((set) => ({
   warnings: [],
   progress: initialProgress,
   error: null,
-  useMockEngine: false,
 
   setStep: (step) => set({ step }),
   setSourceImage: (sourceImage) => set({ sourceImage }),
@@ -60,7 +52,6 @@ export const useKtpStore = create<KtpState>((set) => ({
     set({ data, confidences, rawText, warnings }),
   setProgress: (progress) => set({ progress }),
   setError: (error) => set({ error }),
-  toggleMockEngine: (useMockEngine) => set({ useMockEngine }),
   reset: () =>
     set({
       step: "upload",

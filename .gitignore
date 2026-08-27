@@ -1,5 +1,49 @@
+# Environment variables & Secrets (CRITICAL: Do NOT push to GitHub)
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# Allow example environment file
+!.env.example
+
+# Private documentation & Agent guides
+AGENTS.md
+agents.md
+DATABASE_GUIDE.md
+database_guide.md
+PRODUCT.md
+product.md
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production & Build outputs
+dist/
+dist-ssr/
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+
+# Vercel Deployment
+.vercel/
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+
+# Prisma ORM
+prisma/*.db
+prisma/*.db-journal
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,26 +51,26 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-.output
-.vinxi
-.tanstack/**
-.nitro
-*.local
-
-# Wrangler / Cloudflare
-.wrangler/
-.dev.vars
-
-# Editor directories and files
+# Editor & IDE files
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swo
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Lovable & Antigravity internal metadata
+.lovable/
+.impeccable/
