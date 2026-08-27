@@ -13,6 +13,7 @@ import {
   X,
   User,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,7 @@ import {
 import { authService } from "@/services/authService";
 import type { UserRecord } from "@/services/dbService";
 
-export type AppPageTab = "dashboard" | "ocr" | "decrypt" | "security" | "settings" | "login" | "register" | "forgot-password";
+export type AppPageTab = "dashboard" | "ocr" | "decrypt" | "security" | "ocr-analysis" | "settings" | "login" | "register" | "forgot-password";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -48,6 +49,8 @@ export function AppLayout({ children, activeTab, currentTab, onTabChange }: AppL
     currentTab ||
     (pathname === "/" || pathname === "/dashboard"
       ? "dashboard"
+      : pathname.startsWith("/ocr-analysis")
+      ? "ocr-analysis"
       : pathname.startsWith("/ocr")
       ? "ocr"
       : pathname.startsWith("/decrypt")
@@ -89,7 +92,8 @@ export function AppLayout({ children, activeTab, currentTab, onTabChange }: AppL
     { id: "dashboard", path: "/", label: "Beranda", icon: Activity },
     { id: "ocr", path: "/ocr", label: "Scan & Enkripsi", icon: Scan },
     { id: "decrypt", path: "/decrypt", label: "Data Terenkripsi", icon: Unlock },
-    { id: "security", path: "/security", label: "Analisis", icon: Shield },
+    { id: "ocr-analysis", path: "/ocr-analysis", label: "Analisis OCR", icon: Sparkles },
+    { id: "security", path: "/security", label: "Analisis Kripto", icon: Shield },
   ];
 
   const handleNavigate = (path: string) => {

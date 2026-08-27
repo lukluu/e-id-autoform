@@ -180,14 +180,22 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
             ))}
           </div>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex flex-wrap justify-end gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onNavigate("ocr-analysis")}
+              className="text-xs gap-1.5"
+            >
+              Lihat Analisis OCR <ArrowRight className="size-3.5" />
+            </Button>
             <Button
               size="sm"
               variant="ghost"
               onClick={() => onNavigate("security")}
               className="text-xs gap-1.5 text-muted-foreground"
             >
-              Lihat Analisis Keamanan <ArrowRight className="size-3.5" />
+              Analisis Kriptografi <ArrowRight className="size-3.5" />
             </Button>
           </div>
         </CardContent>

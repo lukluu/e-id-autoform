@@ -51,6 +51,7 @@ export function Home() {
         onNavigate={(tab) => {
           if (tab === "ocr") void navigate({ to: "/ocr" });
           else if (tab === "decrypt") void navigate({ to: "/decrypt" });
+          else if (tab === "ocr-analysis") void navigate({ to: "/ocr-analysis" });
           else if (tab === "security") void navigate({ to: "/security" });
           else if (tab === "settings") void navigate({ to: "/settings" });
         }}
