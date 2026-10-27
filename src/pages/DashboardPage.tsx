@@ -56,7 +56,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const total = loading ? "—" : String(userRecords.length);
 
   return (
-    <div className="space-y-9">
+    <div className="space-y-8">
       <PageHeader
         title={currentUser ? `Halo, ${currentUser.name}` : "Beranda"}
         description="Ringkasan dokumen KTP terenkripsi milik akun Anda."

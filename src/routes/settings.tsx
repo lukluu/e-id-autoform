@@ -9,7 +9,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsRouteComponent() {
   return (
-    <AppLayout activeTab="settings">
+    <AppLayout>
       <SettingsPage />
     </AppLayout>
   );

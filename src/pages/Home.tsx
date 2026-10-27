@@ -46,7 +46,7 @@ export function Home() {
   }
 
   return (
-    <AppLayout activeTab="dashboard">
+    <AppLayout>
       <DashboardPage
         onNavigate={(tab) => {
           if (tab === "ocr") void navigate({ to: "/ocr" });

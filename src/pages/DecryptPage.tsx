@@ -279,7 +279,7 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
     );
 
     return (
-      <div className="mx-auto max-w-6xl space-y-5 pb-10">
+      <div className="mx-auto w-full max-w-3xl space-y-5">
         {/* Navigasi & Action Toolbar */}
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <Button
@@ -396,7 +396,7 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
   // VIEW 2: DAFTAR DOKUMEN KTP (TABEL VAULT)
   // ==========================================
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-8">
       <PageHeader
         title="Data terenkripsi"
         description="Dokumen KTP yang tersimpan dalam bentuk ciphertext. Buka dengan kunci rahasia Anda."

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/security")({
 
 function SecurityRouteComponent() {
   return (
-    <AppLayout activeTab="security">
+    <AppLayout>
       <SecurityAnalysisPage />
     </AppLayout>
   );

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ShieldAlert, ImagePlus, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, ShieldAlert, ImagePlus, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -161,12 +161,54 @@ export function OcrPage({ onNavigate }: OcrPageProps) {
       store.progress.stage !== "idle" &&
       store.progress.stage !== "error");
 
+  const scanSteps = [
+    { key: "upload", label: "Unggah" },
+    { key: "editor", label: "Periksa" },
+    { key: "result", label: "Enkripsi" },
+  ] as const;
+  const activeStep = scanSteps.findIndex((step) => step.key === store.step);
+
   return (
-    <div className="space-y-7">
-      <PageHeader
-        title="Scan & enkripsi KTP"
-        description="Pindai KTP, periksa hasil pembacaan, lalu enkripsi setiap field dengan kunci rahasia Anda."
-      />
+    <div className="space-y-8">
+      <div className="space-y-5">
+        <PageHeader
+          title="Scan & enkripsi KTP"
+          description="Pindai KTP, periksa hasil pembacaan, lalu enkripsi setiap field dengan kunci rahasia Anda."
+        />
+
+        <ol
+          className="flex flex-wrap items-center gap-x-2 gap-y-1.5"
+          aria-label="Langkah scan KTP"
+        >
+          {scanSteps.map((step, index) => {
+            const state = index < activeStep ? "done" : index === activeStep ? "current" : "todo";
+            return (
+              <li key={step.key} className="flex items-center gap-2">
+                {index > 0 && <span aria-hidden className="h-px w-5 bg-border sm:w-7" />}
+                <span
+                  aria-current={state === "current" ? "step" : undefined}
+                  className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                    state === "current"
+                      ? "border-primary/30 bg-primary/10 font-medium text-primary"
+                      : state === "done"
+                        ? "border-border bg-card text-muted-foreground"
+                        : "border-dashed border-border text-muted-foreground/70"
+                  }`}
+                >
+                  {state === "done" ? (
+                    <Check className="size-3" aria-hidden />
+                  ) : (
+                    <span className="tabular-nums text-[10px]">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                  )}
+                  {step.label}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
 
       {store.error && (
         <Alert variant="destructive" className="mx-auto max-w-3xl">

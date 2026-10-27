@@ -10,7 +10,7 @@ export const Route = createFileRoute("/register")({
 function RegisterPageWrapper() {
   const navigate = Route.useNavigate();
   return (
-    <AppLayout activeTab="register">
+    <AppLayout>
       <RegisterPage
         onNavigate={(tab) => {
           if (tab === "dashboard") void navigate({ to: "/" });

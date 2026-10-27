@@ -70,7 +70,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col py-10">
+    <div className="mx-auto w-full max-w-[400px] py-6 sm:py-10">
       <Card>
         <CardHeader className="space-y-1 pb-4">
           <span aria-hidden className="mb-2 block h-1 w-7 rounded-full bg-primary" />

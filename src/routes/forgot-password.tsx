@@ -10,7 +10,7 @@ export const Route = createFileRoute("/forgot-password")({
 function ForgotPasswordWrapper() {
   const navigate = Route.useNavigate();
   return (
-    <AppLayout activeTab="forgot-password">
+    <AppLayout>
       <ForgotPasswordPage
         onNavigate={(tab) => {
           if (tab === "login") void navigate({ to: "/login" });

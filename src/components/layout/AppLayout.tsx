@@ -1,21 +1,7 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "@tanstack/react-router";
-import {
-  Shield,
-  Scan,
-  Unlock,
-  Activity,
-  LogOut,
-  LogIn,
-  UserPlus,
-  Database,
-  Menu,
-  X,
-  User,
-  Settings,
-  Sparkles,
-  ChevronDown,
-} from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { ChevronDown, LogIn, LogOut, Settings, Shield, UserPlus } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,6 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authService } from "@/services/authService";
 import type { UserRecord } from "@/services/dbService";
+import { MobileNav } from "./MobileNav";
+import { analysisNav, isNavActive, workNav } from "./nav";
 
 export type AppPageTab =
   | "dashboard"
@@ -40,210 +28,191 @@ export type AppPageTab =
   | "forgot-password";
 
 interface AppLayoutProps {
-  children: React.ReactNode;
-  activeTab?: AppPageTab;
-  currentTab?: AppPageTab;
-  onTabChange?: (tab: AppPageTab) => void;
+  children: ReactNode;
 }
 
-interface NavItem {
-  id: AppPageTab;
-  path: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
+const navItemBase =
+  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+const navItemIdle = "text-muted-foreground hover:bg-muted/60 hover:text-foreground";
+const navItemActive = "bg-primary/10 font-medium text-primary";
 
-const primaryNav: NavItem[] = [
-  { id: "dashboard", path: "/", label: "Beranda", icon: Activity },
-  { id: "ocr", path: "/ocr", label: "Scan & enkripsi", icon: Scan },
-  { id: "decrypt", path: "/decrypt", label: "Data terenkripsi", icon: Unlock },
-];
+const authPaths = ["/login", "/register", "/forgot-password"];
 
-const secondaryNav: NavItem[] = [
-  { id: "ocr-analysis", path: "/ocr-analysis", label: "Analisis OCR", icon: Sparkles },
-  { id: "security", path: "/security", label: "Analisis kripto", icon: Shield },
-];
-
-const allNav = [...primaryNav, ...secondaryNav];
-
-export function AppLayout({ children, activeTab, currentTab, onTabChange }: AppLayoutProps) {
+export function AppLayout({ children }: AppLayoutProps) {
   const [currentUser, setCurrentUser] = useState<UserRecord | null>(authService.getCurrentUser());
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const navigate = useNavigate();
   const location = useLocation();
-
   const pathname = location.pathname;
-  const currentActive: AppPageTab =
-    activeTab ||
-    currentTab ||
-    (pathname === "/" || pathname === "/dashboard"
-      ? "dashboard"
-      : pathname.startsWith("/ocr-analysis")
-        ? "ocr-analysis"
-        : pathname.startsWith("/ocr")
-          ? "ocr"
-          : pathname.startsWith("/decrypt")
-            ? "decrypt"
-            : pathname.startsWith("/security")
-              ? "security"
-              : pathname.startsWith("/settings")
-                ? "settings"
-                : pathname.startsWith("/login")
-                  ? "login"
-                  : pathname.startsWith("/register")
-                    ? "register"
-                    : pathname.startsWith("/forgot-password")
-                      ? "forgot-password"
-                      : "dashboard");
 
-  const isAuthPage =
-    currentActive === "login" || currentActive === "register" || currentActive === "forgot-password";
-  const secondaryActive = secondaryNav.some((item) => item.id === currentActive);
+  const isAuthPage = authPaths.some((path) => pathname.startsWith(path));
+  const analysisActive = analysisNav.some((item) => isNavActive(item.to, pathname));
+
+  const mainRef = useRef<HTMLElement | null>(null);
+  const previousPath = useRef(pathname);
 
   useEffect(() => {
     const unsub = authService.subscribe((user) => {
       setCurrentUser(user);
     });
 
-    // Validasi live ke server Neon PostgreSQL saat halaman dimuat
+    // Validasi sesi live ke server saat shell dimuat.
     void authService.validateSession().then((validUser) => {
       if (!validUser && !isAuthPage) {
-        if (onTabChange) {
-          onTabChange("login");
-        } else {
-          void navigate({ to: "/login" });
-        }
+        void navigate({ to: "/login" });
       }
     });
 
     return () => unsub();
-  }, [isAuthPage, navigate, onTabChange]);
+  }, [isAuthPage, navigate]);
 
-  const handleNavigate = (path: string) => {
-    setMobileMenuOpen(false);
-    void navigate({ to: path as never });
-  };
+  // Pindahkan fokus ke konten setiap rute berganti, agar pembaca layar tidak
+  // tertahan di navigasi.
+  useEffect(() => {
+    if (previousPath.current === pathname) return;
+    previousPath.current = pathname;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
 
   const handleLogout = () => {
-    setMobileMenuOpen(false);
     authService.logout();
     void navigate({ to: "/login" });
   };
 
+  const showAppNav = Boolean(currentUser) && !isAuthPage;
+  const showLoginSwitch = pathname === "/register" || pathname === "/forgot-password";
+
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col pb-[calc(56px+env(safe-area-inset-bottom))] lg:pb-0">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:shadow-card focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Lewati ke konten
+      </a>
+
       <header className="sticky top-0 z-40 w-full border-b border-border/70 bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          {/* Identitas aplikasi */}
-          <button
-            type="button"
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:px-6 lg:h-[60px]">
+          <Link
+            to="/"
             className="flex shrink-0 select-none items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            onClick={() => handleNavigate(currentUser ? "/" : "/login")}
           >
             <span className="flex size-7 items-center justify-center rounded-md border border-border bg-card text-foreground">
-              <Shield className="size-3.5" />
+              <Shield className="size-3.5" aria-hidden />
             </span>
             <span className="text-sm font-semibold tracking-tight text-foreground">
               KTP Crypto
             </span>
-          </button>
+          </Link>
 
-          {/* Navigasi desktop */}
-          {currentUser && !isAuthPage && (
-            <nav className="hidden items-center gap-1 lg:flex" aria-label="Navigasi utama">
-              {primaryNav.map((item) => {
-                const active = currentActive === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleNavigate(item.path)}
-                    aria-current={active ? "page" : undefined}
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
-                      active
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    }`}
-                  >
-                    <item.icon className="size-3.5" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
+          {showAppNav && (
+            <nav aria-label="Navigasi utama" className="ml-3 hidden lg:block">
+              <ul className="flex items-center gap-1">
+                {workNav.map((item) => {
+                  const active = isNavActive(item.to, pathname);
+                  return (
+                    <li key={item.to}>
+                      <Link
+                        to={item.to}
+                        aria-current={active ? "page" : undefined}
+                        className={`${navItemBase} ${active ? navItemActive : navItemIdle}`}
+                      >
+                        <item.icon className="size-4" aria-hidden />
+                        <span>{item.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
-                      secondaryActive
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    }`}
-                  >
-                    <span>Lainnya</span>
-                    <ChevronDown className="size-3.5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground">
-                    Modul analisis
-                  </DropdownMenuLabel>
-                  {secondaryNav.map((item) => (
-                    <DropdownMenuItem
-                      key={item.id}
-                      onClick={() => handleNavigate(item.path)}
-                      className="cursor-pointer gap-2"
-                    >
-                      <item.icon className="size-4 text-muted-foreground" />
-                      <span>{item.label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                <li aria-hidden className="mx-2 h-4 w-px bg-border" />
+
+                <li>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className={`${navItemBase} ${
+                          analysisActive ? navItemActive : navItemIdle
+                        }`}
+                      >
+                        <span>Analisis</span>
+                        <ChevronDown className="size-3.5" aria-hidden />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-64">
+                      <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground">
+                        Modul analisis
+                      </DropdownMenuLabel>
+                      {analysisNav.map((item) => {
+                        const active = isNavActive(item.to, pathname);
+                        return (
+                          <DropdownMenuItem key={item.to} asChild className="cursor-pointer">
+                            <Link
+                              to={item.to}
+                              aria-current={active ? "page" : undefined}
+                              className={`flex items-start gap-2.5 py-2 ${
+                                active
+                                  ? "bg-primary/10 text-primary focus:bg-primary/10 focus:text-primary"
+                                  : ""
+                              }`}
+                            >
+                              <item.icon
+                                className={`mt-0.5 size-4 shrink-0 ${
+                                  active ? "text-primary" : "text-muted-foreground"
+                                }`}
+                                aria-hidden
+                              />
+                              <span className="flex min-w-0 flex-col">
+                                <span className="text-sm">{item.label}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {item.description}
+                                </span>
+                              </span>
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </li>
+              </ul>
             </nav>
           )}
 
-          {/* Sisi kanan */}
-          <div className="flex items-center gap-2">
-            {currentUser && !isAuthPage ? (
+          <div className="ml-auto flex items-center gap-2">
+            {showAppNav && currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
                     className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    aria-label={`Menu akun ${currentUser.name}`}
+                    aria-label={`Buka menu akun ${currentUser.name}`}
                   >
                     {currentUser.name.charAt(0).toUpperCase()}
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-60">
                   <DropdownMenuLabel className="py-2 font-normal">
-                    <p className="truncate text-sm font-medium text-foreground">{currentUser.name}</p>
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {currentUser.name}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">{currentUser.email}</p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => handleNavigate("/settings")}
-                    className="cursor-pointer gap-2"
-                  >
-                    <User className="size-4 text-muted-foreground" />
-                    <span>Profil & akun</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleNavigate("/decrypt")}
-                    className="cursor-pointer gap-2"
-                  >
-                    <Database className="size-4 text-muted-foreground" />
-                    <span>Data terenkripsi</span>
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
+                    <Link
+                      to="/settings"
+                      aria-current={pathname === "/settings" ? "page" : undefined}
+                    >
+                      <Settings className="size-4 text-muted-foreground" aria-hidden />
+                      <span>Pengaturan akun</span>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleLogout}
                     className="cursor-pointer gap-2 text-destructive focus:text-destructive"
                   >
-                    <LogOut className="size-4" />
+                    <LogOut className="size-4" aria-hidden />
                     <span>Keluar</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -252,101 +221,60 @@ export function AppLayout({ children, activeTab, currentTab, onTabChange }: AppL
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleNavigate(currentActive === "register" ? "/login" : "/register")}
+                asChild
                 className="h-8 gap-1.5 text-xs font-medium"
               >
-                {currentActive === "register" ? (
-                  <>
-                    <LogIn className="size-3.5" />
-                    Masuk
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="size-3.5" />
-                    Daftar
-                  </>
-                )}
+                <Link to={showLoginSwitch ? "/login" : "/register"}>
+                  {showLoginSwitch ? (
+                    <>
+                      <LogIn className="size-3.5" aria-hidden />
+                      Masuk
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="size-3.5" aria-hidden />
+                      Daftar
+                    </>
+                  )}
+                </Link>
               </Button>
             ) : (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => handleNavigate("/login")}
-                className="h-8 gap-1.5 text-sm"
-              >
-                <LogIn className="size-3.5" />
-                Masuk
+              <Button variant="default" size="sm" asChild className="h-8 gap-1.5 text-sm">
+                <Link to="/login">
+                  <LogIn className="size-3.5" aria-hidden />
+                  Masuk
+                </Link>
               </Button>
-            )}
-
-            {currentUser && !isAuthPage && (
-              <button
-                type="button"
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
-                onClick={() => setMobileMenuOpen((prev) => !prev)}
-                aria-label={mobileMenuOpen ? "Tutup menu" : "Buka menu"}
-                aria-expanded={mobileMenuOpen}
-              >
-                {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-              </button>
             )}
           </div>
         </div>
-
-        {/* Navigasi mobile */}
-        {currentUser && !isAuthPage && mobileMenuOpen && (
-          <div className="border-t border-border/80 bg-background/95 px-4 py-3 backdrop-blur-md lg:hidden">
-            <nav className="space-y-1" aria-label="Navigasi utama">
-              {allNav.map((item) => {
-                const active = currentActive === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleNavigate(item.path)}
-                    aria-current={active ? "page" : undefined}
-                    className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? "bg-primary/10 font-medium text-primary"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                    }`}
-                  >
-                    <item.icon className="size-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-            <div className="my-2 border-t border-border/80" />
-            <button
-              type="button"
-              onClick={() => handleNavigate("/settings")}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-            >
-              <Settings className="size-4" />
-              <span>Profil & akun</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
-            >
-              <LogOut className="size-4" />
-              <span>Keluar</span>
-            </button>
-          </div>
-        )}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-7 sm:px-6 sm:py-9">
+      <main
+        id="main-content"
+        ref={mainRef}
+        tabIndex={-1}
+        className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 focus:outline-none sm:px-6 sm:py-9 lg:py-10"
+      >
         {children}
       </main>
 
-      <footer className="border-t border-border/70 py-4">
-        <p className="mx-auto max-w-6xl px-4 text-xs text-muted-foreground sm:px-6">
-          KTP Crypto · Data KTP dienkripsi dengan Blowfish dan hanya dapat dibuka oleh pemiliknya.
-        </p>
+      <footer className="border-t border-border/70">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="flex items-start gap-2 sm:items-center">
+            <Shield className="mt-0.5 size-3.5 shrink-0 text-primary sm:mt-0" aria-hidden />
+            <span>
+              KTP Crypto · Data KTP dienkripsi dengan Blowfish dan hanya dapat dibuka oleh
+              pemiliknya.
+            </span>
+          </p>
+          <p className="shrink-0 tabular-nums">Blowfish · CBC · 16 rounds</p>
+        </div>
       </footer>
+
+      {showAppNav && currentUser && (
+        <MobileNav pathname={pathname} currentUser={currentUser} onLogout={handleLogout} />
+      )}
     </div>
   );
 }

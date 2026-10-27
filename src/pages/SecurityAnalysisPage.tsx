@@ -80,7 +80,7 @@ export function SecurityAnalysisPage() {
   };
 
   return (
-    <div className="space-y-7 pb-6">
+    <div className="space-y-8">
       <PageHeader
         title="Analisis kriptografi"
         description="Uji avalanche effect, entropi Shannon, dan kecepatan Blowfish pada data KTP."

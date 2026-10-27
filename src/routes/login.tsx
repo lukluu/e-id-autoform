@@ -10,7 +10,7 @@ export const Route = createFileRoute("/login")({
 function LoginPageWrapper() {
   const navigate = Route.useNavigate();
   return (
-    <AppLayout activeTab="login">
+    <AppLayout>
       <LoginPage
         onNavigate={(tab) => {
           if (tab === "dashboard") void navigate({ to: "/" });

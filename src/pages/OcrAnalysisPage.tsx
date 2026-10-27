@@ -255,7 +255,7 @@ export function OcrAnalysisPage() {
   ];
 
   return (
-    <div className="space-y-7 pb-6">
+    <div className="space-y-8">
       <PageHeader
         title="Analisis pipeline OCR"
         description="Alur yang dilalui citra KTP — dari kamera ponsel hingga menjadi data terstruktur yang siap dienkripsi."

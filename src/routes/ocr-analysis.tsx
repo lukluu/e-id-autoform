@@ -9,7 +9,7 @@ export const Route = createFileRoute("/ocr-analysis")({
 
 function OcrAnalysisRouteComponent() {
   return (
-    <AppLayout activeTab="ocr-analysis">
+    <AppLayout>
       <OcrAnalysisPage />
     </AppLayout>
   );

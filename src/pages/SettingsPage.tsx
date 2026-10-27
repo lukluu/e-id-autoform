@@ -190,7 +190,7 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 pb-12">
+    <div className="space-y-8">
       <PageHeader
         title="Pengaturan akun"
         description="Kelola profil, kata sandi, dan cadangan data KTP milik akun Anda."
@@ -198,7 +198,7 @@ export function SettingsPage() {
 
       {/* 1. Pengaturan Profil Pengguna */}
       {currentUser && (
-        <Card>
+        <Card className="max-w-3xl">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="text-base">Informasi profil</CardTitle>
@@ -300,7 +300,7 @@ export function SettingsPage() {
 
       {/* 2. Keamanan & Ganti Kata Sandi */}
       {currentUser && (
-        <Card>
+        <Card className="max-w-3xl">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Keamanan akun</CardTitle>
             <CardDescription className="text-sm">
@@ -374,7 +374,7 @@ export function SettingsPage() {
       )}
 
       {/* 3. Backup & Manajemen Data */}
-      <Card>
+      <Card className="max-w-3xl">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Cadangan & penghapusan data</CardTitle>
           <CardDescription className="text-sm">
