@@ -85,7 +85,8 @@ export function UploadKtp({ onImageReady }: UploadKtpProps) {
                 </Button>
               </div>
 
-              <div
+              <button
+                type="button"
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDragging(true);
@@ -97,18 +98,20 @@ export function UploadKtp({ onImageReady }: UploadKtpProps) {
                   void handleFile(e.dataTransfer.files[0]);
                 }}
                 onClick={() => galleryInputRef.current?.click()}
-                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-10 text-center transition-colors ${
+                className={`flex w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-lg border border-dashed px-6 py-10 text-center transition-colors ${
                   dragging
                     ? "border-primary bg-primary/5"
-                    : "border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
+                    : "border-border bg-gradient-to-b from-muted/60 to-card hover:border-primary/40 hover:from-muted/80"
                 }`}
               >
-                <UploadCloud className="size-7 text-muted-foreground" />
-                <p className="text-sm font-medium text-foreground">
+                <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <UploadCloud className="size-5" />
+                </span>
+                <span className="text-sm font-medium text-foreground">
                   atau lepas gambar KTP di sini
-                </p>
-                <p className="text-xs text-muted-foreground">JPG, JPEG, atau PNG — maks. 12 MB</p>
-              </div>
+                </span>
+                <span className="text-xs text-muted-foreground">JPG, JPEG, atau PNG — maks. 12 MB</span>
+              </button>
             </>
           )}
 

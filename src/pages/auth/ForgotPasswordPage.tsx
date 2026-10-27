@@ -73,6 +73,7 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
     <div className="mx-auto flex w-full max-w-sm flex-col py-10">
       <Card>
         <CardHeader className="space-y-1 pb-4">
+          <span aria-hidden className="mb-2 block h-1 w-7 rounded-full bg-primary" />
           <CardTitle className="text-lg font-semibold tracking-tight">Lupa kata sandi</CardTitle>
           <CardDescription className="text-sm">
             {step === 1

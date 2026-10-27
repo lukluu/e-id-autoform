@@ -40,6 +40,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     <div className="mx-auto flex w-full max-w-sm flex-col py-10">
       <Card>
         <CardHeader className="space-y-1 pb-4">
+          <span aria-hidden className="mb-2 block h-1 w-7 rounded-full bg-primary" />
           <CardTitle className="text-lg font-semibold tracking-tight">Masuk</CardTitle>
           <CardDescription className="text-sm">
             Akses dokumen KTP terenkripsi milik akun Anda.

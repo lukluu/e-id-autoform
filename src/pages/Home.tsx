@@ -32,7 +32,7 @@ export function Home() {
   // Loading state saat verifikasi sesi pertama kali
   if (!authReady) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
           <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-sm">Memuat...</p>

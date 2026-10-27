@@ -14,6 +14,7 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <div className="flex flex-col gap-4 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-1">
+        <span aria-hidden className="mb-2 block h-1 w-7 rounded-full bg-primary" />
         <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-foreground">
           {title}
         </h1>
