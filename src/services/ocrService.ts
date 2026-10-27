@@ -1,56 +1,68 @@
 import type { OcrEngine, OcrResult } from "@/types/ktp";
-import { parseKtpText, enrichWithWilayah } from "@/services/ktpParser";
+import { parseKtpText, enrichWithWilayah, validateIsKtpDocument } from "@/services/ktpParser";
 import { enhanceForOcr } from "@/utils/imageProcessor";
 
-// Helper to reliably obtain a browser-compatible Tesseract instance
-async function getBrowserTesseract(): Promise<any> {
-  if (typeof window !== "undefined" && (window as any).Tesseract) {
-    return (window as any).Tesseract;
-  }
+// Tesseract dimuat dari CDN dengan versi & SRI yang dipatok agar tidak
+// bisa disisipi kode pihak ketiga (supply-chain).
+const TESSERACT_VERSION = "5.1.1";
+const TESSERACT_SRI = "sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F";
+const TESSERACT_CDN = `https://cdn.jsdelivr.net/npm/tesseract.js@${TESSERACT_VERSION}/dist/tesseract.min.js`;
+const TESSERACT_CDN_FALLBACK = `https://unpkg.com/tesseract.js@${TESSERACT_VERSION}/dist/tesseract.min.js`;
 
-  // 1. Coba load dari CDN via script tag (browser-safe, tidak ada error CJS require)
+interface TesseractRecognitionResult {
+  data: { text: string; confidence?: number };
+}
+
+interface TesseractLibrary {
+  recognize(
+    image: Blob,
+    langs: string,
+    options?: { logger?: (m: { status: string; progress: number }) => void },
+  ): Promise<TesseractRecognitionResult>;
+}
+
+type TesseractWindow = Window & { Tesseract?: TesseractLibrary };
+
+let tesseractScriptPromise: Promise<TesseractLibrary> | null = null;
+
+function loadTesseractScript(src: string): Promise<TesseractLibrary> {
   return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      return reject(new Error("Lingkungan bukan browser"));
-    }
-
-    if ((window as any).Tesseract) {
-      return resolve((window as any).Tesseract);
-    }
-
-    const existingScript = document.querySelector('script[src*="tesseract.min.js"]');
-    if (existingScript) {
-      existingScript.addEventListener("load", () => {
-        resolve((window as any).Tesseract);
-      });
-      existingScript.addEventListener("error", () => {
-        reject(new Error("Gagal menginisialisasi pustaka Tesseract OCR"));
-      });
-      return;
-    }
-
     const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+    script.src = src;
     script.async = true;
     script.crossOrigin = "anonymous";
+    script.integrity = TESSERACT_SRI;
     script.onload = () => {
-      if ((window as any).Tesseract) {
-        resolve((window as any).Tesseract);
-      } else {
-        reject(new Error("Pustaka Tesseract berhasil diunduh namun objek tidak ditemukan"));
-      }
+      const instance = (window as TesseractWindow).Tesseract;
+      if (instance) resolve(instance);
+      else reject(new Error("Pustaka Tesseract berhasil diunduh namun objek tidak ditemukan"));
     };
-    script.onerror = () => {
-      // Fallback ke unpkg jika jsdelivr terkendala
-      const fallbackScript = document.createElement("script");
-      fallbackScript.src = "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js";
-      fallbackScript.async = true;
-      fallbackScript.onload = () => resolve((window as any).Tesseract);
-      fallbackScript.onerror = () => reject(new Error("Gagal memuat pustaka OCR dari CDN"));
-      document.head.appendChild(fallbackScript);
-    };
+    script.onerror = () => reject(new Error(`Gagal memuat pustaka OCR dari ${src}`));
     document.head.appendChild(script);
   });
+}
+
+// Helper to reliably obtain a browser-compatible Tesseract instance
+async function getBrowserTesseract(): Promise<TesseractLibrary> {
+  if (typeof window === "undefined") {
+    throw new Error("Lingkungan bukan browser");
+  }
+  const existing = (window as TesseractWindow).Tesseract;
+  if (existing) {
+    return existing;
+  }
+
+  if (!tesseractScriptPromise) {
+    tesseractScriptPromise = loadTesseractScript(TESSERACT_CDN)
+      .catch(() => loadTesseractScript(TESSERACT_CDN_FALLBACK))
+      .catch((err) => {
+        // Izinkan percobaan ulang pada aksi pengguna berikutnya.
+        tesseractScriptPromise = null;
+        throw err;
+      });
+  }
+
+  return tesseractScriptPromise;
 }
 
 export const tesseractEngine: OcrEngine = {
@@ -122,11 +134,19 @@ export async function runOcr(dataUrl: string, options: RunOcrOptions): Promise<O
   });
 
   if (!text.trim()) {
-    throw new Error("OCR tidak menemukan teks apa pun pada gambar.");
+    throw new Error("OCR tidak menemukan teks apa pun pada gambar. Pastikan Anda mengunggah foto KTP yang jelas.");
   }
 
   options.onStage("extract", 85);
   const parsed = parseKtpText(text, Math.max(0.55, confidence));
+
+  // Validasi keaslian dokumen: apakah citra ini benar-benar e-KTP Indonesia?
+  const validation = validateIsKtpDocument(text, parsed.data);
+  if (!validation.isKtp) {
+    throw new Error(
+      validation.reason || "Dokumen KTP tidak terdeteksi. Silakan coba unggah foto KTP yang jelas.",
+    );
+  }
 
   // Enrich with wilayah API reverse lookup (async)
   options.onStage("fill", 92);

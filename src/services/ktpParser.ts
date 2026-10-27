@@ -786,3 +786,161 @@ export async function enrichWithWilayah(data: KtpData): Promise<Partial<KtpData>
   return updates;
 }
 
+/**
+ * Pola kata kunci dan label khas dokumen e-KTP Republik Indonesia.
+ */
+const KTP_SIGNATURE_PATTERNS = [
+  /\bPROVINSI\b/i,
+  /\b(KABUPATEN|KOTA)\b/i,
+  /\bN[I1l|][KC]\b/i,
+  /\bNAMA\b/i,
+  /\bTEMPAT\b|\bLAHIR\b|\bTGL\s*LAHIR\b/i,
+  /\bJENIS\s*KELAMIN\b|\bLAKI-LAKI\b|\bPEREMPUAN\b/i,
+  /\bGOL\.?\s*DARAH\b/i,
+  /\bALAMAT\b/i,
+  /\bRT\s*[/ ]?\s*RW\b|\bRTRW\b/i,
+  /\bKE[LI]\.?\s*[/ ]?\s*DESA\b|\bKELURAHAN\b|\bDESA\b/i,
+  /\bKECAMATAN\b/i,
+  /\bAGAMA\b|\bISLAM\b|\bKRISTEN\b|\bKATOLIK\b|\bHINDU\b|\bBUDDHA\b|\bKONGHUCU\b/i,
+  /\bSTATUS\s*(?:PERKAWINAN)?\b|\bKAWIN\b|\bBELUM\s*KAWIN\b|\bCERAI\b/i,
+  /\bPEKERJAAN\b|\bKARYAWAN\b|\bWIRASWASTA\b|\bPELAJAR\b|\bMAHASISWA\b|\bPNS\b|\bBURUH\b/i,
+  /\bKEWARGANEGARAAN\b|\bWARGA\s*NEGARA\b|\bWNI\b/i,
+  /\bBERLAKU\s*(?:HINGGA)?\b|\bSEUMUR\s*HIDUP\b/i,
+  /\bREPUBLIK\s*INDONESIA\b|\bKARTU\s*TANDA\s*PENDUDUK\b/i,
+];
+
+export type DetectedDocumentType = "KTP" | "BPJS" | "SIM" | "NPWP" | "KK" | "PASPOR" | "UNKNOWN";
+
+export interface KtpValidationResult {
+  isKtp: boolean;
+  score: number;
+  detectedType: DetectedDocumentType;
+  title: string;
+  reason: string;
+  matchedKeywords: number;
+  extractedCoreFields: number;
+}
+
+/**
+ * Memvalidasi apakah teks dan struktur hasil OCR merupakan dokumen e-KTP Indonesia yang valid,
+ * serta mendeteksi secara cerdas jika dokumen yang diunggah adalah BPJS, SIM, NPWP, KK, dll.
+ */
+export function validateIsKtpDocument(rawText: string, data: KtpData): KtpValidationResult {
+  const text = rawText.trim();
+  if (text.length < 15) {
+    return {
+      isKtp: false,
+      score: 0,
+      detectedType: "UNKNOWN",
+      title: "Gambar Tidak Terbaca",
+      reason: "Teks pada gambar terlalu sedikit atau tidak terbaca. Pastikan Anda mengunggah foto e-KTP fisik yang jelas dan terang.",
+      matchedKeywords: 0,
+      extractedCoreFields: 0,
+    };
+  }
+
+  // 1. Deteksi Cerdas Jenis Dokumen Non-KTP
+  if (/\b(BPJS|JAMINAN\s*SOSIAL|BADAN\s*PENYELENGGARA|FASKES|KARTU\s*INDONESIA\s*SEHAT|\bKIS\b)\b/i.test(text)) {
+    return {
+      isKtp: false,
+      score: 0,
+      detectedType: "BPJS",
+      title: "Terdeteksi Kartu BPJS / KIS",
+      reason: "Dokumen yang diunggah terdeteksi sebagai Kartu BPJS Kesehatan / Ketenagakerjaan. Sistem ini dirancang khusus untuk memproses formulir e-KTP Indonesia. Silakan unggah foto e-KTP fisik Anda.",
+      matchedKeywords: 0,
+      extractedCoreFields: 0,
+    };
+  }
+
+  if (/\b(SURAT\s*IZIN\s*MENGEMUDI|DRIVING\s*LICENSE|KORLANTAS|GOLONGAN\s*SIM)\b/i.test(text)) {
+    return {
+      isKtp: false,
+      score: 0,
+      detectedType: "SIM",
+      title: "Terdeteksi Surat Izin Mengemudi (SIM)",
+      reason: "Dokumen yang diunggah terdeteksi sebagai SIM (Surat Izin Mengemudi). Sistem ini khusus dirancang untuk e-KTP Indonesia. Silakan unggah foto e-KTP fisik Anda.",
+      matchedKeywords: 0,
+      extractedCoreFields: 0,
+    };
+  }
+
+  if (/\b(NOMOR\s*POKOK\s*WAJIB\s*PAJAK|\bNPWP\b|DIREKTORAT\s*JENDERAL\s*PAJAK|DIRJEN\s*PAJAK)\b/i.test(text)) {
+    return {
+      isKtp: false,
+      score: 0,
+      detectedType: "NPWP",
+      title: "Terdeteksi Kartu NPWP Pajak",
+      reason: "Dokumen yang diunggah terdeteksi sebagai Kartu NPWP (Nomor Pokok Wajib Pajak). Silakan unggah foto e-KTP fisik Anda.",
+      matchedKeywords: 0,
+      extractedCoreFields: 0,
+    };
+  }
+
+  if (/\b(KARTU\s*KELUARGA|\bNO\.?\s*KK\b|KEPALA\s*KELUARGA)\b/i.test(text) && !/\bNIK\b/i.test(text)) {
+    return {
+      isKtp: false,
+      score: 0,
+      detectedType: "KK",
+      title: "Terdeteksi Kartu Keluarga (KK)",
+      reason: "Dokumen yang diunggah terdeteksi sebagai Lembar Kartu Keluarga (KK). Silakan unggah foto e-KTP fisik perseorangan.",
+      matchedKeywords: 0,
+      extractedCoreFields: 0,
+    };
+  }
+
+  if (/\b(PASPOR\s*REPUBLIK|PASSPORT\s*OF|IMMIGRATION\s*OFFICE)\b/i.test(text)) {
+    return {
+      isKtp: false,
+      score: 0,
+      detectedType: "PASPOR",
+      title: "Terdeteksi Dokumen Paspor",
+      reason: "Dokumen yang diunggah terdeteksi sebagai Paspor. Sistem ini khusus dirancang untuk e-KTP Indonesia. Silakan unggah foto e-KTP fisik Anda.",
+      matchedKeywords: 0,
+      extractedCoreFields: 0,
+    };
+  }
+
+  // 2. Hitung jumlah kata kunci KTP yang terdeteksi pada teks OCR mentah
+  let matchedKeywords = 0;
+  for (const pattern of KTP_SIGNATURE_PATTERNS) {
+    if (pattern.test(text)) {
+      matchedKeywords++;
+    }
+  }
+
+  // 3. Hitung field data KTP esensial yang berhasil diekstrak
+  let extractedCoreFields = 0;
+  if (data.nik && data.nik.length >= 14) extractedCoreFields += 2;
+  if (data.nama) extractedCoreFields++;
+  if (data.provinsi || data.kabupatenKota) extractedCoreFields++;
+  if (data.tempatLahir || data.tanggalLahir) extractedCoreFields++;
+  if (data.jenisKelamin) extractedCoreFields++;
+  if (data.alamat || data.rt || data.rw) extractedCoreFields++;
+  if (data.kecamatan || data.kelurahanDesa) extractedCoreFields++;
+  if (data.agama) extractedCoreFields++;
+  if (data.statusPerkawinan) extractedCoreFields++;
+  if (data.pekerjaan) extractedCoreFields++;
+
+  // 4. Evaluasi apakah dokumen memenuhi standar KTP
+  const hasValidNik = Boolean(data.nik && isValidNik(data.nik));
+  const isKtp =
+    (hasValidNik && (matchedKeywords >= 1 || extractedCoreFields >= 2)) ||
+    (matchedKeywords >= 3 && extractedCoreFields >= 2) ||
+    (matchedKeywords >= 4) ||
+    (extractedCoreFields >= 4);
+
+  const totalScore = Math.min(1, matchedKeywords * 0.15 + extractedCoreFields * 0.1);
+
+  return {
+    isKtp,
+    score: totalScore,
+    detectedType: isKtp ? "KTP" : "UNKNOWN",
+    title: isKtp ? "Dokumen KTP Valid" : "Bukan Dokumen e-KTP",
+    reason: isKtp
+      ? "Dokumen terverifikasi sebagai e-KTP Indonesia yang valid."
+      : "Dokumen KTP tidak terdeteksi. Silakan pastikan foto KTP terlihat jelas dan tidak buram.",
+    matchedKeywords,
+    extractedCoreFields,
+  };
+}
+

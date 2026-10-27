@@ -59,6 +59,12 @@ export class UnauthorizedError extends AppError {
   }
 }
 
+export class ForbiddenError extends AppError {
+  constructor(message = "Anda tidak memiliki izin untuk mengakses data ini.", details?: unknown) {
+    super(message, 403, "FORBIDDEN", details);
+  }
+}
+
 export class NotFoundError extends AppError {
   constructor(message = "Data yang diminta tidak ditemukan.", details?: unknown) {
     super(message, 404, "NOT_FOUND", details);
@@ -95,7 +101,7 @@ export function handlePrismaError(error: unknown): AppError {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case "P2002": {
-        const target = (error.meta?.target as string[]) || [];
+        const target = (error.meta?.["target"] as string[]) || [];
         const fieldName = target.join(", ") || "Data";
         return new ConflictError(
           `Terjadi duplikasi: ${fieldName} sudah digunakan. Harap gunakan data yang lain.`,
@@ -108,7 +114,7 @@ export function handlePrismaError(error: unknown): AppError {
           { code: error.code }
         );
       case "P2003": {
-        const field = error.meta?.field_name as string;
+        const field = error.meta?.["field_name"] as string;
         return new BadRequestError(
           `Relasi data tidak valid: Data referensi ${field || "terkait"} tidak ditemukan.`,
           { code: error.code }

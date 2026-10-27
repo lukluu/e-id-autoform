@@ -1,38 +1,59 @@
 /**
  * Prisma Database Seeder for Neon PostgreSQL
- * Seeds default administrator account
+ *
+ * Seeder TIDAK lagi membuat akun admin dengan kata sandi hardcoded.
+ * Akun admin hanya dibuat jika SEED_ADMIN_EMAIL dan SEED_ADMIN_PASSWORD
+ * diisi secara eksplisit melalui environment variable.
  */
 
 import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
+import { hashPassword } from "../src/server/password.ts";
 
 dotenv.config();
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("🌱 Menjalankan Seeder Database Neon PostgreSQL...");
+const ADMIN_EMAIL = process.env["SEED_ADMIN_EMAIL"]?.toLowerCase().trim() || "";
+const ADMIN_PASSWORD = process.env["SEED_ADMIN_PASSWORD"] || "";
+const ADMIN_NAME = process.env["SEED_ADMIN_NAME"]?.trim() || "Administrator Sistem";
+const ADMIN_USERNAME = process.env["SEED_ADMIN_USERNAME"]?.toLowerCase().trim() || "admin";
 
-  // Seed default admin user
+async function seedAdmin(): Promise<void> {
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    console.log(
+      "ℹ️  SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD tidak diset — akun admin tidak dibuat.",
+    );
+    console.log(
+      "   Untuk membuat admin: set kedua variabel tersebut lalu jalankan ulang `npm run prisma:seed`.",
+    );
+    return;
+  }
+
+  if (ADMIN_PASSWORD.length < 8) {
+    throw new Error("SEED_ADMIN_PASSWORD minimal 8 karakter.");
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ADMIN_EMAIL)) {
+    throw new Error("SEED_ADMIN_EMAIL tidak valid.");
+  }
+
+  const passwordHash = hashPassword(ADMIN_PASSWORD);
+
   const adminUser = await prisma.user.upsert({
-    where: { email: "admin@blowfish-ktp.id" },
+    where: { email: ADMIN_EMAIL },
     update: {
-      name: "Peneliti Kriptografi KTP",
-      username: "admin",
-      password: "h_234bf995", // password default: admin123
-      phone: "081234567890",
-      address: "Pusat Riset Kriptografi Nasional",
+      name: ADMIN_NAME,
+      username: ADMIN_USERNAME,
+      password: passwordHash,
       role: "admin",
       emailVerifiedAt: new Date(),
       updatedAt: new Date(),
     },
     create: {
-      name: "Peneliti Kriptografi KTP",
-      email: "admin@blowfish-ktp.id",
-      username: "admin",
-      password: "h_234bf995",
-      phone: "081234567890",
-      address: "Pusat Riset Kriptografi Nasional",
+      name: ADMIN_NAME,
+      email: ADMIN_EMAIL,
+      username: ADMIN_USERNAME,
+      password: passwordHash,
       role: "admin",
       emailVerifiedAt: new Date(),
       createdAt: new Date(),
@@ -40,10 +61,16 @@ async function main() {
     },
   });
 
-  console.log(`✅ User Admin Default berhasil disiapkan: ${adminUser.email} (ID: ${adminUser.id})`);
+  console.log(`✅ Akun admin siap: ${adminUser.email} (ID: ${adminUser.id})`);
   console.log(`   - Username: ${adminUser.username}`);
   console.log(`   - Role: ${adminUser.role}`);
-  console.log(`   - Password: admin123`);
+  console.log("   - Password: (sesuai SEED_ADMIN_PASSWORD, tidak ditampilkan)");
+}
+
+async function main(): Promise<void> {
+  console.log("🌱 Menjalankan Seeder Database Neon PostgreSQL...");
+
+  await seedAdmin();
 
   // Seed default application settings
   await prisma.appSetting.upsert({

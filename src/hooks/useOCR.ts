@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { useKtpStore } from "@/store/ktpStore";
 import { runOcr } from "@/services/ocrService";
 import type { OcrStage } from "@/types/ktp";
@@ -45,6 +46,10 @@ export function useOCR() {
             ? err.message
             : "Terjadi kesalahan saat memproses OCR. Coba lagi dengan gambar yang lebih jelas.";
         setError(message);
+        toast.error("Validasi Dokumen Gagal", {
+          description: message,
+          duration: 6000,
+        });
         setProgress({ stage: "error", progress: 0, message: STAGE_MESSAGE.error });
       } finally {
         setIsRunning(false);

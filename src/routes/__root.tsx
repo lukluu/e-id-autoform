@@ -111,11 +111,6 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="id">
       <head>
         <HeadContent />
-        <script
-          src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"
-          async
-          crossOrigin="anonymous"
-        />
       </head>
       <body>
         {children}

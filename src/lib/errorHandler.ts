@@ -29,20 +29,27 @@ export function getErrorMessage(error: unknown, fallbackMessage = "Terjadi kesal
     const errObj = error as Record<string, any>;
 
     // 1. Respon terstruktur dari backend
-    if (errObj.error && typeof errObj.error === "object" && typeof errObj.error.message === "string") {
-      return errObj.error.message;
+    if (
+      errObj["error"] &&
+      typeof errObj["error"] === "object" &&
+      typeof errObj["error"].message === "string"
+    ) {
+      return errObj["error"].message;
     }
 
-    if (typeof errObj.error === "string") {
-      return errObj.error;
+    if (typeof errObj["error"] === "string") {
+      return errObj["error"];
     }
 
-    if (typeof errObj.message === "string") {
+    if (typeof errObj["message"] === "string") {
       // Terjemahkan beberapa error browser umum
-      if (errObj.message.includes("Failed to fetch") || errObj.message.includes("NetworkError")) {
+      if (
+        errObj["message"].includes("Failed to fetch") ||
+        errObj["message"].includes("NetworkError")
+      ) {
         return "Koneksi jaringan terputus. Harap periksa koneksi internet Anda.";
       }
-      return errObj.message;
+      return errObj["message"];
     }
   }
 

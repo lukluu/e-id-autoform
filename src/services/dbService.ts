@@ -1,6 +1,12 @@
 /**
  * Layanan Database Utama Terintegrasi Neon Serverless PostgreSQL Cloud (Prisma ORM)
- * dengan Sinkronisasi & Fallback Otomatis ke IndexedDB / LocalStorage
+ * dengan cache lokal (IndexedDB/LocalStorage) untuk mode offline.
+ *
+ * Prinsip:
+ * - Semua request API menyertakan Bearer token (HMAC) dari server.
+ * - Operasi tulis TIDAK lagi menghasilkan "sukses palsu": kegagalan server
+ *   dilempar sebagai error agar UI bisa memberi tahu pengguna.
+ * - Data KTP selalu di-scope ke pemiliknya oleh server.
  */
 
 export interface UserRecord {
@@ -66,11 +72,37 @@ export interface DatabaseStatus {
   error?: string;
 }
 
+export interface AuthResult {
+  token: string;
+  expiresAt: string;
+  user: UserRecord;
+}
+
+export class ApiError extends Error {
+  public readonly status: number;
+  public readonly code: string | undefined;
+
+  constructor(message: string, status = 0, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 const DB_NAME = "eIdBlowfishDB";
 const DB_VERSION = 1;
 const LOCAL_STORAGE_KTP_KEY = "eid_encrypted_ktp_backup";
 const LOCAL_STORAGE_USERS_KEY = "eid_users_backup";
 const LOCAL_STORAGE_SETTINGS_KEY = "eid_app_settings_backup";
+const AUTH_TOKEN_KEY = "eid_auth_token";
+
+interface ApiErrorPayload {
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
 
 class DatabaseService {
   private idb: IDBDatabase | null = null;
@@ -79,7 +111,7 @@ class DatabaseService {
     driver: "neon_postgres",
     connected: false,
     database: "neondb",
-    host: "ep-withered-salad-az5r7iqs-pooler.c-3.ap-southeast-1.aws.neon.tech",
+    host: "neon.tech",
   };
   private statusListeners: Set<(s: DatabaseStatus) => void> = new Set();
 
@@ -102,9 +134,69 @@ class DatabaseService {
     this.statusListeners.forEach((l) => l(copy));
   }
 
-  /**
-   * Cek konektivitas live ke server Neon PostgreSQL via API Backend
-   */
+  // ----------------------------------------------------------------
+  // AUTH TOKEN & API TRANSPORT
+  // ----------------------------------------------------------------
+
+  public getAuthToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  }
+
+  public setAuthToken(token: string | null): void {
+    if (typeof window === "undefined") return;
+    if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+    else localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
+
+  private async apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const headers = new Headers(init.headers);
+    if (init.body !== undefined && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    const token = this.getAuthToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+
+    let response: Response;
+    try {
+      response = await fetch(path, { ...init, headers });
+    } catch {
+      throw new ApiError(
+        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
+        0,
+        "NETWORK_ERROR",
+      );
+    }
+
+    const text = await response.text();
+    let data: unknown = null;
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = null;
+      }
+    }
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.setAuthToken(null);
+      }
+      const payload = data as ApiErrorPayload | null;
+      throw new ApiError(
+        payload?.error?.message || `Permintaan gagal (HTTP ${response.status}).`,
+        response.status,
+        payload?.error?.code,
+      );
+    }
+
+    return data as T;
+  }
+
+  // ----------------------------------------------------------------
+  // CONNECTION STATUS
+  // ----------------------------------------------------------------
+
   public async checkDatabaseConnection(): Promise<DatabaseStatus> {
     if (typeof window === "undefined") return this.dbStatus;
 
@@ -115,14 +207,19 @@ class DatabaseService {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as {
+          connected?: boolean;
+          database?: string;
+          host?: string;
+          error?: string;
+        };
         this.isRemoteDbActive = data.connected === true;
         this.dbStatus = {
           driver: "neon_postgres",
           connected: data.connected === true,
           database: data.database || "neondb",
-          host: data.host || "ep-withered-salad-az5r7iqs-pooler.c-3.ap-southeast-1.aws.neon.tech",
-          error: data.error,
+          host: data.host || "neon.tech",
+          ...(data.error ? { error: data.error } : {}),
         };
       } else {
         this.isRemoteDbActive = false;
@@ -151,6 +248,97 @@ class DatabaseService {
 
   public getStatus(): DatabaseStatus {
     return this.dbStatus;
+  }
+
+  public isRemoteActive(): boolean {
+    return this.isRemoteDbActive;
+  }
+
+  // ----------------------------------------------------------------
+  // AUTH OPERATIONS (SERVER-SIDE)
+  // ----------------------------------------------------------------
+
+  public async login(identifier: string, password: string): Promise<AuthResult> {
+    const data = await this.apiFetch<AuthResult>("/api/db/auth-login", {
+      method: "POST",
+      body: JSON.stringify({ identifier, password }),
+    });
+    this.setAuthToken(data.token);
+    this.saveUserLocalStorage(data.user);
+    return data;
+  }
+
+  public async register(payload: {
+    name: string;
+    email: string;
+    password: string;
+    username?: string | undefined;
+    phone?: string | undefined;
+    address?: string | undefined;
+  }): Promise<AuthResult> {
+    const data = await this.apiFetch<AuthResult>("/api/db/auth-register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    this.setAuthToken(data.token);
+    this.saveUserLocalStorage(data.user);
+    return data;
+  }
+
+  public async requestPasswordReset(
+    email: string,
+  ): Promise<{ success: boolean; message?: string; emailSent?: boolean }> {
+    return this.apiFetch("/api/db/auth-forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  public async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    await this.apiFetch("/api/db/auth-reset-password", {
+      method: "POST",
+      body: JSON.stringify({ email, code, newPassword }),
+    });
+  }
+
+  public async getCurrentUserFromServer(): Promise<UserRecord | null> {
+    if (!this.getAuthToken()) return null;
+    try {
+      const data = await this.apiFetch<{ user: UserRecord }>("/api/db/auth-me", {
+        method: "GET",
+      });
+      this.saveUserLocalStorage(data.user);
+      return data.user;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  public async updateUserProfile(
+    userData: {
+      name?: string | undefined;
+      username?: string | null | undefined;
+      phone?: string | null | undefined;
+      address?: string | null | undefined;
+      avatar?: string | null | undefined;
+    },
+  ): Promise<UserRecord | null> {
+    const data = await this.apiFetch<{ user: UserRecord }>("/api/db/user-update-profile", {
+      method: "POST",
+      body: JSON.stringify({ user: userData }),
+    });
+    this.saveUserLocalStorage(data.user);
+    return data.user;
+  }
+
+  public async updateUserPassword(currentPassword: string, newPassword: string): Promise<void> {
+    await this.apiFetch("/api/db/user-update-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
   }
 
   // ----------------------------------------------------------------
@@ -197,182 +385,62 @@ class DatabaseService {
   }
 
   // ----------------------------------------------------------------
-  // USER OPERATIONS
-  // ----------------------------------------------------------------
-
-  public async getUserByIdentifier(identifier: string): Promise<UserRecord | null> {
-    const cleanId = identifier.trim().toLowerCase();
-    if (!cleanId) return null;
-
-    // 1. Coba Neon PostgreSQL Cloud
-    try {
-      const res = await fetch("/api/db/user-get", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: cleanId }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.user) {
-          this.saveUserLocalStorage(data.user);
-          return data.user;
-        }
-        // Jika server terhubung dan akun tidak ditemukan, hapus cache lokal
-        if (cleanId.includes("@")) {
-          this.removeUserLocalStorage(cleanId);
-        }
-        return null;
-      }
-    } catch {
-      // Fallback jika offline/network error
-    }
-
-    // 2. Fallback Local Storage
-    return (
-      this.getUserByEmailLocalStorage(cleanId) ||
-      this.getAllUsersLocalStorage().find((u) => u.username?.toLowerCase() === cleanId) ||
-      null
-    );
-  }
-
-  public async getUserByEmail(email: string): Promise<UserRecord | null> {
-    return this.getUserByIdentifier(email);
-  }
-
-  public async getUserByUsername(username: string): Promise<UserRecord | null> {
-    return this.getUserByIdentifier(username);
-  }
-
-  public async createUser(user: UserRecord): Promise<void> {
-    user.email = user.email.trim().toLowerCase();
-    if (user.username) {
-      user.username = user.username.trim().toLowerCase();
-    }
-
-    // 1. Coba Neon PostgreSQL
-    if (this.isRemoteDbActive) {
-      try {
-        await fetch("/api/db/user-create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user }),
-        });
-      } catch {
-        // Fallback
-      }
-    }
-
-    // 2. Fallback Local Storage & IndexedDB
-    this.saveUserLocalStorage(user);
-    await this.initIndexedDb();
-    if (this.idb && this.idb.objectStoreNames.contains("users")) {
-      try {
-        const tx = this.idb.transaction("users", "readwrite");
-        tx.objectStore("users").put(user);
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  public async updateUserPassword(email: string, newPasswordHash: string): Promise<boolean> {
-    const cleanEmail = email.trim().toLowerCase();
-
-    // 1. Coba Neon PostgreSQL
-    if (this.isRemoteDbActive) {
-      try {
-        const res = await fetch("/api/db/user-update-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, passwordHash: newPasswordHash }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            const user = this.getUserByEmailLocalStorage(cleanEmail);
-            if (user) {
-              user.password = newPasswordHash;
-              user.passwordHash = newPasswordHash;
-              user.updatedAt = new Date().toISOString();
-              this.saveUserLocalStorage(user);
-            }
-            return true;
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    // 2. Fallback Local Storage
-    const user = this.getUserByEmailLocalStorage(cleanEmail);
-    if (!user) return false;
-    user.password = newPasswordHash;
-    user.passwordHash = newPasswordHash;
-    user.updatedAt = new Date().toISOString();
-    this.saveUserLocalStorage(user);
-    return true;
-  }
-
-  public async updateUserProfile(
-    userData: Partial<UserRecord> & { email: string }
-  ): Promise<UserRecord | null> {
-    const cleanEmail = userData.email.trim().toLowerCase();
-
-    // 1. Coba Neon PostgreSQL
-    if (this.isRemoteDbActive) {
-      try {
-        const res = await fetch("/api/db/user-update-profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user: { ...userData, email: cleanEmail } }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.user) {
-            this.saveUserLocalStorage(data.user);
-            return data.user;
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    // 2. Fallback Local Storage
-    const user = this.getUserByEmailLocalStorage(cleanEmail);
-    if (user) {
-      if (userData.name) user.name = userData.name;
-      if (userData.username !== undefined) user.username = userData.username;
-      if (userData.phone !== undefined) user.phone = userData.phone;
-      if (userData.address !== undefined) user.address = userData.address;
-      if (userData.avatar !== undefined) user.avatar = userData.avatar;
-      user.updatedAt = new Date().toISOString();
-      this.saveUserLocalStorage(user);
-      return user;
-    }
-    return null;
-  }
-
-  // ----------------------------------------------------------------
-  // ENCRYPTED KTP OPERATIONS
+  // ENCRYPTED KTP OPERATIONS (SERVER-FIRST, OWNER-SCOPED)
   // ----------------------------------------------------------------
 
   public async saveEncryptedKtp(record: EncryptedKtpRecord): Promise<void> {
-    // 1. Coba Neon PostgreSQL
     if (this.isRemoteDbActive) {
-      try {
-        await fetch("/api/db/ktp-save", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ record }),
-        });
-      } catch {
-        // Fallback
-      }
+      await this.apiFetch("/api/db/ktp-save", {
+        method: "POST",
+        body: JSON.stringify({ record }),
+      });
+    }
+    await this.saveEncryptedKtpLocal(record);
+  }
+
+  public async getAllEncryptedKtp(): Promise<EncryptedKtpRecord[]> {
+    if (this.isRemoteDbActive) {
+      const data = await this.apiFetch<{ records?: EncryptedKtpRecord[] }>("/api/db/ktp-list", {
+        method: "GET",
+      });
+      const records = Array.isArray(data.records) ? data.records : [];
+      localStorage.setItem(LOCAL_STORAGE_KTP_KEY, JSON.stringify(records));
+      return records;
     }
 
-    // 2. Fallback Local Storage & IndexedDB
+    return this.getEncryptedKtpLocalStorage();
+  }
+
+  public async deleteEncryptedKtp(id: string): Promise<boolean> {
+    if (this.isRemoteDbActive) {
+      await this.apiFetch("/api/db/ktp-delete", {
+        method: "POST",
+        body: JSON.stringify({ id }),
+      });
+    }
+
+    this.deleteEncryptedKtpLocalStorage(id);
+    return true;
+  }
+
+  public async deleteAllMyEncryptedKtp(): Promise<number> {
+    let deleted = 0;
+
+    if (this.isRemoteDbActive) {
+      const data = await this.apiFetch<{ deleted?: number }>("/api/db/ktp-delete-all", {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      deleted = typeof data.deleted === "number" ? data.deleted : 0;
+    } else {
+      deleted = this.getEncryptedKtpLocalStorage().length;
+    }
+
+    await this.clearLocalKtpCache();
+    return deleted;
+  }
+
+  private async saveEncryptedKtpLocal(record: EncryptedKtpRecord): Promise<void> {
     const all = this.getEncryptedKtpLocalStorage();
     const idx = all.findIndex((r) => r.id === record.id);
     if (idx >= 0) all[idx] = record;
@@ -385,55 +453,9 @@ class DatabaseService {
         const tx = this.idb.transaction("encrypted_ktp", "readwrite");
         tx.objectStore("encrypted_ktp").put(record);
       } catch {
-        // ignore
+        // ignore cache errors
       }
     }
-  }
-
-  public async getAllEncryptedKtp(): Promise<EncryptedKtpRecord[]> {
-    if (this.isRemoteDbActive) {
-      try {
-        const res = await fetch("/api/db/ktp-list", {
-          method: "GET",
-          headers: { "Cache-Control": "no-cache" },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.records)) {
-            localStorage.setItem(LOCAL_STORAGE_KTP_KEY, JSON.stringify(data.records));
-            return data.records;
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    return this.getEncryptedKtpLocalStorage();
-  }
-
-  public async deleteEncryptedKtp(id: string): Promise<boolean> {
-    if (this.isRemoteDbActive) {
-      try {
-        const res = await fetch("/api/db/ktp-delete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            this.deleteEncryptedKtpLocalStorage(id);
-            return true;
-          }
-        }
-      } catch {
-        // Fallback
-      }
-    }
-
-    this.deleteEncryptedKtpLocalStorage(id);
-    return true;
   }
 
   private deleteEncryptedKtpLocalStorage(id: string): void {
@@ -441,87 +463,68 @@ class DatabaseService {
     localStorage.setItem(LOCAL_STORAGE_KTP_KEY, JSON.stringify(list));
   }
 
-  // ----------------------------------------------------------------
-  // RECOVERY CODE OPERATIONS
-  // ----------------------------------------------------------------
-
-  public async saveRecoveryCode(record: RecoveryCodeRecord): Promise<void> {
-    if (this.isRemoteDbActive) {
-      try {
-        await fetch("/api/db/recovery-save", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ record }),
-        });
-      } catch {
-        // Fallback
-      }
+  /**
+   * Hapus cache KTP lokal (localStorage + IndexedDB).
+   * Dipanggil saat logout/login agar data user sebelumnya tidak tampil ke user lain.
+   */
+  public async clearLocalKtpCache(): Promise<void> {
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_KTP_KEY);
+    } catch {
+      // ignore
     }
 
-    const all = this.getRecoveryCodesLocalStorage();
-    all.push(record);
-    localStorage.setItem("eid_recovery_codes_backup", JSON.stringify(all));
-  }
-
-  public async verifyRecoveryCode(
-    email: string,
-    code: string,
-    type: "PASSWORD_RESET" | "KEY_RECOVERY"
-  ): Promise<boolean> {
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (this.isRemoteDbActive) {
+    await this.initIndexedDb();
+    if (this.idb && this.idb.objectStoreNames.contains("encrypted_ktp")) {
       try {
-        const res = await fetch("/api/db/recovery-verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: cleanEmail, code, type }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          return Boolean(data.valid);
-        }
+        const tx = this.idb.transaction("encrypted_ktp", "readwrite");
+        tx.objectStore("encrypted_ktp").clear();
       } catch {
-        // Fallback
+        // ignore
       }
     }
-
-    const all = this.getRecoveryCodesLocalStorage();
-    const now = new Date().getTime();
-    const item = all.find(
-      (r) =>
-        r.email === cleanEmail &&
-        r.code === code &&
-        r.type === type &&
-        !r.used &&
-        new Date(r.expiresAt).getTime() > now
-    );
-
-    if (!item) return false;
-    item.used = true;
-    localStorage.setItem("eid_recovery_codes_backup", JSON.stringify(all));
-    return true;
   }
 
   // ----------------------------------------------------------------
-  // EXPORT & IMPORT DATABASE BACKUP
+  // KEY RECOVERY (SERVER-SIDE OTP)
+  // ----------------------------------------------------------------
+
+  public async requestKeyRecovery(
+    recordId: string,
+  ): Promise<{ success: boolean; message?: string; emailSent?: boolean }> {
+    return this.apiFetch("/api/db/key-recovery-request", {
+      method: "POST",
+      body: JSON.stringify({ recordId }),
+    });
+  }
+
+  public async recoverKey(recordId: string, code: string): Promise<string> {
+    const data = await this.apiFetch<{ keyHint?: string }>("/api/db/key-recovery", {
+      method: "POST",
+      body: JSON.stringify({ recordId, code }),
+    });
+    if (!data.keyHint) {
+      throw new ApiError("Kunci rahasia tidak ditemukan untuk dokumen ini.", 404, "NOT_FOUND");
+    }
+    return data.keyHint;
+  }
+
+  // ----------------------------------------------------------------
+  // EXPORT & IMPORT DATABASE BACKUP (KTP SENDIRI SAJA)
   // ----------------------------------------------------------------
 
   public async exportDatabaseToJson(): Promise<string> {
     const ktpRecords = await this.getAllEncryptedKtp();
-    const users = this.getAllUsersLocalStorage();
 
     const exportData = {
-      version: 1,
+      version: 2,
       driver: this.isRemoteDbActive ? "neon_postgres" : "indexeddb",
       exportDate: new Date().toISOString(),
-      system: "Blowfish KTP Security System with Neon PostgreSQL",
+      system: "Blowfish KTP Security System",
       counts: {
-        users: users.length,
         encryptedKtp: ktpRecords.length,
       },
       data: {
-        users,
         encryptedKtp: ktpRecords,
       },
     };
@@ -529,28 +532,57 @@ class DatabaseService {
     return JSON.stringify(exportData, null, 2);
   }
 
-  public async importDatabaseFromJson(jsonString: string): Promise<{ success: boolean; message: string }> {
+  public async importDatabaseFromJson(
+    jsonString: string,
+  ): Promise<{ success: boolean; message: string }> {
     try {
-      const parsed = JSON.parse(jsonString);
-      if (!parsed.data) {
-        return { success: false, message: "Format file JSON backup tidak valid." };
+      const parsed = JSON.parse(jsonString) as {
+        data?: { encryptedKtp?: unknown };
+      };
+      const records = parsed.data?.encryptedKtp;
+
+      if (!Array.isArray(records)) {
+        return {
+          success: false,
+          message: "Format file JSON backup tidak valid (data.encryptedKtp tidak ditemukan).",
+        };
       }
 
-      if (Array.isArray(parsed.data.users)) {
-        for (const u of parsed.data.users) {
-          await this.createUser(u);
+      let imported = 0;
+      let skipped = 0;
+
+      for (const item of records) {
+        if (!item || typeof item !== "object") {
+          skipped += 1;
+          continue;
         }
-      }
+        const raw = item as Partial<EncryptedKtpRecord>;
+        if (
+          typeof raw.id !== "string" ||
+          typeof raw.iv !== "string" ||
+          typeof raw.keyChecksum !== "string"
+        ) {
+          skipped += 1;
+          continue;
+        }
 
-      if (Array.isArray(parsed.data.encryptedKtp)) {
-        for (const k of parsed.data.encryptedKtp) {
-          await this.saveEncryptedKtp(k);
+        try {
+          await this.saveEncryptedKtp({
+            ...(raw as EncryptedKtpRecord),
+            userId: undefined,
+          });
+          imported += 1;
+        } catch {
+          skipped += 1;
         }
       }
 
       return {
-        success: true,
-        message: `Berhasil memulihkan ${parsed.data.encryptedKtp?.length || 0} data KTP dan ${parsed.data.users?.length || 0} akun pengguna ke database.`,
+        success: imported > 0,
+        message:
+          imported > 0
+            ? `Berhasil memulihkan ${imported} data KTP${skipped > 0 ? ` (${skipped} dilewati)` : ""}.`
+            : "Tidak ada data KTP valid yang dapat dipulihkan dari file tersebut.",
       };
     } catch (err) {
       return { success: false, message: "Gagal memproses file JSON: " + (err as Error).message };
@@ -561,23 +593,10 @@ class DatabaseService {
   // LOCAL STORAGE HELPERS
   // ----------------------------------------------------------------
 
-  private getAllUsersLocalStorage(): UserRecord[] {
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private getUserByEmailLocalStorage(email: string): UserRecord | null {
-    const list = this.getAllUsersLocalStorage();
-    return list.find((u) => u.email === email) || null;
-  }
-
   private saveUserLocalStorage(user: UserRecord): void {
     try {
-      const list = this.getAllUsersLocalStorage();
+      const raw = localStorage.getItem(LOCAL_STORAGE_USERS_KEY);
+      const list = raw ? (JSON.parse(raw) as UserRecord[]) : [];
       const idx = list.findIndex((u) => u.id === user.id || u.email === user.email);
       if (idx >= 0) list[idx] = user;
       else list.push(user);
@@ -587,70 +606,38 @@ class DatabaseService {
     }
   }
 
-  private removeUserLocalStorage(email: string): void {
-    if (typeof window === "undefined") return;
-    try {
-      const users = this.getAllUsersLocalStorage().filter((u) => u.email.toLowerCase() !== email.toLowerCase());
-      localStorage.setItem(LOCAL_STORAGE_USERS_KEY, JSON.stringify(users));
-    } catch {
-      // ignore
-    }
-  }
-
   private getEncryptedKtpLocalStorage(): EncryptedKtpRecord[] {
     try {
       const raw = localStorage.getItem(LOCAL_STORAGE_KTP_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private getRecoveryCodesLocalStorage(): RecoveryCodeRecord[] {
-    try {
-      const raw = localStorage.getItem("eid_recovery_codes_backup");
-      return raw ? JSON.parse(raw) : [];
+      return raw ? (JSON.parse(raw) as EncryptedKtpRecord[]) : [];
     } catch {
       return [];
     }
   }
 
   /**
-   * Reset dan bersihkan seluruh isi database Neon PostgreSQL, IndexedDB, dan LocalStorage
+   * Bersihkan seluruh cache lokal (KTP, user, settings) dan hapus token.
+   * Data di server TIDAK dihapus oleh fungsi ini.
    */
-  public async clearEntireDatabase(): Promise<void> {
-    // 1. Reset Neon PostgreSQL via backend
-    if (this.isRemoteDbActive) {
-      try {
-        await fetch("/api/db/reset-database", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-      } catch (err) {
-        console.warn("Gagal reset Neon PostgreSQL:", err);
-      }
-    }
-
-    // 2. Clear LocalStorage & Session
+  public async clearLocalCaches(): Promise<void> {
+    this.setAuthToken(null);
     try {
       localStorage.removeItem(LOCAL_STORAGE_KTP_KEY);
       localStorage.removeItem(LOCAL_STORAGE_USERS_KEY);
       localStorage.removeItem(LOCAL_STORAGE_SETTINGS_KEY);
-      localStorage.removeItem("eid_recovery_codes_backup");
-      localStorage.removeItem("eid_auth_session");
       sessionStorage.clear();
     } catch {
       // ignore
     }
 
-    // 3. Clear IndexedDB
     await this.initIndexedDb();
     if (this.idb) {
       try {
         const stores = ["encrypted_ktp", "users", "recovery_codes"];
-        const tx = this.idb.transaction(stores, "readwrite");
-        for (const store of stores) {
-          if (this.idb.objectStoreNames.contains(store)) {
+        const available = stores.filter((store) => this.idb?.objectStoreNames.contains(store));
+        if (available.length > 0) {
+          const tx = this.idb.transaction(available, "readwrite");
+          for (const store of available) {
             tx.objectStore(store).clear();
           }
         }
@@ -659,16 +646,6 @@ class DatabaseService {
       }
     }
   }
-}
-
-export function hashPasswordSimple(password: string): string {
-  let hash = 0x811c9dc5;
-  const str = `BLOWFISH_APP_SALT_${password}`;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash ^ str.charCodeAt(i)) >>> 0;
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return "h_" + hash.toString(16).padStart(8, "0");
 }
 
 export const dbService = new DatabaseService();

@@ -1,16 +1,25 @@
+/**
+ * Test integrasi backend (dijalankan manual, bukan bagian dari build aplikasi).
+ *
+ * Jalankan: node --experimental-strip-types src/server/testBackend.ts
+ *
+ * PERHATIAN: skrip ini membuat lalu menghapus data uji di database yang
+ * dikonfigurasi pada DATABASE_URL.
+ */
+
 import {
   testNeonConnection,
   initNeonDatabase,
   neonCreateUser,
   neonGetUserByEmail,
-  neonGetUserByUsername,
   neonSaveEncryptedKtp,
   neonGetAllEncryptedKtp,
   neonDeleteEncryptedKtp,
 } from "./neon.ts";
 import { testMailtrapConnection } from "./mailtrap.ts";
-import { formatApiErrorResponse, ValidationError, ConflictError } from "./errors/appError.ts";
-import type { UserRecord, EncryptedKtpRecord } from "../services/dbService.ts";
+import { hashPassword } from "./password.ts";
+import { formatApiErrorResponse } from "./errors/appError.ts";
+import type { EncryptedKtpRecord } from "../services/dbService.ts";
 
 async function main() {
   console.log("=== MEMULAI TEST INTEGRASI & ERROR HANDLING BACKEND ===");
@@ -27,60 +36,55 @@ async function main() {
     process.exit(1);
   }
 
+  await initNeonDatabase();
+  console.log("- Inisialisasi database: OK");
+
   // 2. Uji Penanganan Error Validasi (Validation Error)
   console.log("\n2. Menguji Error Handling: Input Kosong / Invalid...");
   try {
     await neonCreateUser({
-      id: "",
-      name: "", // Kosong!
+      name: "",
       email: "invalid-user@test.com",
       password: "",
-      createdAt: "",
-      updatedAt: "",
     });
     console.error("- Gagal: Seharusnya memicu ValidationError");
   } catch (err) {
     const formatted = formatApiErrorResponse(err);
-    console.log(`- Berhasil ditangkap! [Status ${formatted.statusCode}] [Code: ${formatted.response.error.code}]`);
+    console.log(
+      `- Berhasil ditangkap! [Status ${formatted.statusCode}] [Code: ${formatted.response.error.code}]`,
+    );
     console.log(`  Pesan Error: "${formatted.response.error.message}"`);
   }
 
   // 3. Uji Operasi CRUD Normal & Duplikasi (Conflict Error)
   console.log("\n3. Menguji Operasi Normal & Error Duplikasi (P2002)...");
   const testEmail = `test.err.${Date.now()}@blowfish-ktp.id`;
-  const validUser: UserRecord = {
-    id: crypto.randomUUID(),
+  const validUser = {
     name: "User Uji Error Handling",
     email: testEmail,
-    username: `err_user_${Date.now().toString().slice(-4)}`,
-    password: "h_test_password_hash",
+    username: `err_user_${Date.now().toString().slice(-6)}`,
+    password: hashPassword("RahasiaUji123!"),
     phone: "081234567890",
     address: "Jl. Test Error No. 1",
     role: "user",
-    avatar: null,
-    emailVerifiedAt: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   };
 
   const created = await neonCreateUser(validUser);
   console.log(`- Berhasil membuat user: ${created.email}`);
 
-  // 4. Uji Duplikasi Email / Username
+  // 4. Uji Duplikasi Email
   console.log("- Menguji penanganan duplikasi email...");
   try {
-    await neonCreateUser({
-      ...validUser,
-      id: crypto.randomUUID(),
-      name: "Duplikat User",
-    });
-    console.log("- Upsert berhasil mengupdate data yang sama tanpa crash.");
+    await neonCreateUser({ ...validUser, username: null, name: "Duplikat User" });
+    console.log("- Gagal: duplikasi email seharusnya ditolak.");
   } catch (err) {
     const formatted = formatApiErrorResponse(err);
-    console.log(`- Berhasil menangani konflik! [${formatted.response.error.code}]: ${formatted.response.error.message}`);
+    console.log(
+      `- Berhasil menangani konflik! [${formatted.response.error.code}]: ${formatted.response.error.message}`,
+    );
   }
 
-  // 5. Uji Penyimpanan Dokumen KTP Terenkripsi
+  // 5. Uji Penyimpanan Dokumen KTP Terenkripsi (owner-scoped)
   console.log("\n4. Menguji operasi KTP terenkripsi & error handling...");
   const ktpId = "ktp_test_err_" + Date.now();
   const testKtp: EncryptedKtpRecord = {
@@ -111,19 +115,48 @@ async function main() {
     displayNama: "PENGUJIAN ERROR HANDLING",
   };
 
-  await neonSaveEncryptedKtp(testKtp);
+  await neonSaveEncryptedKtp(testKtp, created.id);
   console.log("- Berhasil menyimpan KTP terenkripsi.");
 
+  const listed = await neonGetAllEncryptedKtp(created.id);
+  console.log(`- Jumlah dokumen milik user: ${listed.length}`);
+  if (listed.some((r) => r.keyHint !== undefined)) {
+    console.error("- PERINGATAN: keyHint bocor pada endpoint list!");
+  }
+
+  // Pastikan user lain tidak bisa melihat dokumen ini
+  const otherEmail = `test.other.${Date.now()}@blowfish-ktp.id`;
+  const other = await neonCreateUser({
+    name: "User Lain",
+    email: otherEmail,
+    password: hashPassword("RahasiaLain123!"),
+    role: "user",
+  });
+  const otherList = await neonGetAllEncryptedKtp(other.id);
+  console.log(`- Dokumen yang terlihat oleh user lain: ${otherList.length} (harus 0)`);
+
   // Hapus data uji coba
-  await neonDeleteEncryptedKtp(ktpId);
+  await neonDeleteEncryptedKtp(ktpId, created.id);
   console.log("- Pembersihan data uji coba KTP: SELESAI");
+
+  await neonDeleteEncryptedKtp(ktpId, other.id).catch(() => {
+    console.log("- Otorisasi hapus lintas user: DITOLAK (benar)");
+  });
+
+  // Bersihkan user uji
+  for (const email of [testEmail, otherEmail]) {
+    const user = await neonGetUserByEmail(email);
+    if (user) {
+      console.log(`- (Manual) Hapus user uji ${email} bila perlu, ID: ${user.id}`);
+    }
+  }
 
   // 6. Uji SMTP Mailtrap
   console.log("\n5. Menguji koneksi SMTP Mailtrap...");
   const mailStatus = await testMailtrapConnection();
   console.log("- Status SMTP Mailtrap:", mailStatus.connected ? "TERHUBUNG (SIAP KIRIM)" : "NONAKTIF");
 
-  console.log("\n=== TEST INTEGRASI & ERROR HANDLING SELESAI DENGAN SUKSES ===");
+  console.log("\n=== TEST INTEGRASI & ERROR HANDLING SELESAI ===");
   process.exit(0);
 }
 

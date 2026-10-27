@@ -1,5 +1,4 @@
-import { dbService, hashPasswordSimple, type UserRecord } from "./dbService";
-import { emailService } from "./emailService";
+import { dbService, ApiError, type UserRecord } from "./dbService";
 
 type AuthListener = (user: UserRecord | null) => void;
 
@@ -52,33 +51,52 @@ class AuthService {
     return this.currentUser;
   }
 
+  /** Terapkan data user terbaru (mis. setelah update profil) ke state global. */
+  public applyUser(user: UserRecord | null): void {
+    if (!user) return;
+    this.currentUser = user;
+    this.notify();
+  }
+
   public isAuthenticated(): boolean {
     return Boolean(this.currentUser);
   }
 
   /**
-   * Validasi apakah sesi user saat ini masih valid di database Neon PostgreSQL.
-   * Jika akun telah dihapus dari database, otomatis logout dan hapus sesi browser.
+   * Validasi sesi ke server.
+   * - 401 / token tidak ada  -> logout (sesi memang tidak valid).
+   * - error jaringan/server -> pertahankan sesi, tapi pemanggil tidak boleh
+   *   membaca data vault yang mungkin sudah basi.
    */
   public async validateSession(): Promise<UserRecord | null> {
     if (!this.currentUser) return null;
 
+    if (!dbService.getAuthToken()) {
+      this.logout();
+      return null;
+    }
+
     try {
-      const userInDb = await dbService.getUserByEmail(this.currentUser.email);
-      if (!userInDb) {
+      const user = await dbService.getCurrentUserFromServer();
+      if (!user) {
         this.logout();
         return null;
       }
-      this.currentUser = userInDb;
+      this.currentUser = user;
       this.notify();
-      return userInDb;
-    } catch {
+      return user;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        this.logout();
+        return null;
+      }
+      console.warn("[AUTH] Validasi sesi gagal sementara:", (err as Error).message);
       return this.currentUser;
     }
   }
 
   /**
-   * Login pengguna dengan Email atau Username
+   * Login pengguna dengan Email atau Username (diverifikasi di server).
    */
   public async login(
     identifier: string,
@@ -88,36 +106,27 @@ class AuthService {
     if (!cleanId) {
       return { success: false, error: "Email atau username wajib diisi." };
     }
-
-    const user = await dbService.getUserByIdentifier(cleanId);
-
-    if (!user) {
-      return { success: false, error: "Akun dengan email/username tersebut tidak ditemukan di database." };
+    if (!password) {
+      return { success: false, error: "Kata sandi wajib diisi." };
     }
 
-    const hashedInput = hashPasswordSimple(password);
-    const trimmedHashedInput = hashPasswordSimple(password.trim());
-    const storedHash = user.password || user.passwordHash;
-    if (storedHash !== hashedInput && storedHash !== trimmedHashedInput) {
-      return { success: false, error: "Kata sandi yang dimasukkan salah." };
+    try {
+      const result = await dbService.login(cleanId, password);
+      this.currentUser = result.user;
+      await dbService.clearLocalKtpCache();
+      this.notify();
+      return { success: true, user: result.user };
+    } catch (err) {
+      return {
+        success: false,
+        error: (err as Error).message || "Gagal login. Silakan coba lagi.",
+      };
     }
-
-    this.currentUser = user;
-    this.notify();
-
-    return { success: true, user };
   }
 
   /**
-   * Pendaftaran akun baru
-   * Field Wajib:
-   * - name: Nama lengkap (VARCHAR 100)
-   * - email: Email user (VARCHAR 100)
-   * - password: Password minimal 6 karakter (VARCHAR 255)
-   * Field Opsional:
-   * - username: Username (VARCHAR 50)
-   * - phone: Nomor HP (VARCHAR 20)
-   * - address: Alamat (TEXT)
+   * Pendaftaran akun baru.
+   * Validasi utama dilakukan di server; validasi di sini hanya untuk UX.
    */
   public async register(
     payloadOrName: string | RegisterPayload,
@@ -144,21 +153,18 @@ class AuthService {
       rawPassword = password || "";
     }
 
-    // Validasi Field Wajib
     if (!name.trim()) {
       return { success: false, error: "Nama lengkap wajib diisi." };
     }
     if (name.length > 100) {
       return { success: false, error: "Nama lengkap maksimal 100 karakter." };
     }
-
     if (!cleanEmail || !cleanEmail.includes("@")) {
       return { success: false, error: "Format email tidak valid." };
     }
     if (cleanEmail.length > 100) {
       return { success: false, error: "Email maksimal 100 karakter." };
     }
-
     if (rawPassword.length < 6) {
       return { success: false, error: "Kata sandi minimal 6 karakter." };
     }
@@ -166,75 +172,56 @@ class AuthService {
       return { success: false, error: "Kata sandi terlalu panjang (maksimal 255 karakter)." };
     }
 
-    // Cek Duplikasi Email
-    const existingEmail = await dbService.getUserByEmail(cleanEmail);
-    if (existingEmail) {
-      return { success: false, error: "Email sudah terdaftar. Silakan login atau reset kata sandi." };
+    try {
+      const result = await dbService.register({
+        name: name.trim(),
+        email: cleanEmail,
+        password: rawPassword,
+        username: username || undefined,
+        phone: phone || undefined,
+        address: address || undefined,
+      });
+      this.currentUser = result.user;
+      await dbService.clearLocalKtpCache();
+      this.notify();
+      return { success: true, user: result.user };
+    } catch (err) {
+      return {
+        success: false,
+        error: (err as Error).message || "Gagal mendaftarkan akun. Silakan coba lagi.",
+      };
     }
-
-    // Cek Duplikasi Username jika diisi
-    if (username) {
-      if (username.length > 50) {
-        return { success: false, error: "Username maksimal 50 karakter." };
-      }
-      const existingUsername = await dbService.getUserByUsername(username);
-      if (existingUsername) {
-        return { success: false, error: "Username sudah digunakan oleh pengguna lain." };
-      }
-    }
-
-    const newUser: UserRecord = {
-      id: crypto.randomUUID ? crypto.randomUUID() : "usr_" + Date.now(),
-      name: name.trim(),
-      email: cleanEmail,
-      username: username ? username.toLowerCase() : null,
-      password: hashPasswordSimple(rawPassword),
-      passwordHash: hashPasswordSimple(rawPassword),
-      phone: phone || null,
-      address: address || null,
-      role: "user",
-      avatar: null,
-      emailVerifiedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    await dbService.createUser(newUser);
-    this.currentUser = newUser;
-    this.notify();
-
-    return { success: true, user: newUser };
   }
 
   public logout(): void {
     this.currentUser = null;
+    dbService.setAuthToken(null);
+    void dbService.clearLocalKtpCache();
     this.notify();
   }
 
-  public async requestPasswordReset(email: string): Promise<{ success: boolean; error?: string; code?: string }> {
+  public async requestPasswordReset(
+    email: string,
+  ): Promise<{ success: boolean; error?: string; message?: string }> {
     const cleanEmail = email.trim().toLowerCase();
-    const user = await dbService.getUserByEmail(cleanEmail);
-
-    if (!user) {
-      return { success: false, error: "Akun dengan email tersebut tidak terdaftar di database." };
+    if (!cleanEmail) {
+      return { success: false, error: "Email wajib diisi." };
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-    await dbService.saveRecoveryCode({
-      id: crypto.randomUUID ? crypto.randomUUID() : "code_" + Date.now(),
-      type: "PASSWORD_RESET",
-      email: cleanEmail,
-      code,
-      createdAt: new Date().toISOString(),
-      expiresAt,
-      used: false,
-    });
-
-    await emailService.sendPasswordResetEmail(cleanEmail, code);
-
-    return { success: true, code };
+    try {
+      const result = await dbService.requestPasswordReset(cleanEmail);
+      return {
+        success: true,
+        message:
+          result.message ||
+          "Jika email tersebut terdaftar, kode verifikasi telah dikirim. Periksa kotak masuk Anda.",
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: (err as Error).message || "Gagal mengirim kode verifikasi.",
+      };
+    }
   }
 
   public async confirmPasswordReset(
@@ -246,18 +233,19 @@ class AuthService {
     if (newPassword.length < 6) {
       return { success: false, error: "Kata sandi baru minimal 6 karakter." };
     }
-
-    const verified = await dbService.verifyRecoveryCode(cleanEmail, code, "PASSWORD_RESET");
-    if (!verified) {
-      return { success: false, error: "Kode verifikasi salah atau sudah kedaluarsa (berlaku 15 menit)." };
+    if (!code.trim()) {
+      return { success: false, error: "Kode verifikasi wajib diisi." };
     }
 
-    const updated = await dbService.updateUserPassword(cleanEmail, hashPasswordSimple(newPassword));
-    if (!updated) {
-      return { success: false, error: "Gagal memperbarui kata sandi." };
+    try {
+      await dbService.resetPassword(cleanEmail, code.trim(), newPassword);
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: (err as Error).message || "Kode verifikasi salah atau sudah kedaluwarsa.",
+      };
     }
-
-    return { success: true };
   }
 }
 
