@@ -15,6 +15,7 @@ import { Route as DecryptRouteImport } from './routes/decrypt'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OcrRouteImport } from './routes/ocr'
+import { Route as OcrAnalysisRouteImport } from './routes/ocr-analysis'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -49,6 +50,11 @@ const OcrRoute = OcrRouteImport.update({
   path: '/ocr',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OcrAnalysisRoute = OcrAnalysisRouteImport.update({
+  id: '/ocr-analysis',
+  path: '/ocr-analysis',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/ocr': typeof OcrRoute
+  '/ocr-analysis': typeof OcrAnalysisRoute
   '/register': typeof RegisterRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/ocr': typeof OcrRoute
+  '/ocr-analysis': typeof OcrAnalysisRoute
   '/register': typeof RegisterRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/ocr': typeof OcrRoute
+  '/ocr-analysis': typeof OcrAnalysisRoute
   '/register': typeof RegisterRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/ocr'
+    | '/ocr-analysis'
     | '/register'
     | '/security'
     | '/settings'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/ocr'
+    | '/ocr-analysis'
     | '/register'
     | '/security'
     | '/settings'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/ocr'
+    | '/ocr-analysis'
     | '/register'
     | '/security'
     | '/settings'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   OcrRoute: typeof OcrRoute
+  OcrAnalysisRoute: typeof OcrAnalysisRoute
   RegisterRoute: typeof RegisterRoute
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OcrRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ocr-analysis': {
+      id: '/ocr-analysis'
+      path: '/ocr-analysis'
+      fullPath: '/ocr-analysis'
+      preLoaderRoute: typeof OcrAnalysisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   OcrRoute: OcrRoute,
+  OcrAnalysisRoute: OcrAnalysisRoute,
   RegisterRoute: RegisterRoute,
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,

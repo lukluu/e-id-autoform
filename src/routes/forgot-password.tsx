@@ -13,8 +13,8 @@ function ForgotPasswordWrapper() {
     <AppLayout activeTab="forgot-password">
       <ForgotPasswordPage
         onNavigate={(tab) => {
-          if (tab === "login" || tab === "/login") void navigate({ to: "/login" });
-          else if (tab === "dashboard" || tab === "/") void navigate({ to: "/" });
+          if (tab === "login") void navigate({ to: "/login" });
+          else if (tab === "dashboard") void navigate({ to: "/" });
         }}
       />
     </AppLayout>

@@ -3,16 +3,9 @@ import {
   Download,
   Upload,
   Trash2,
-  User,
-  Lock,
   CheckCircle2,
   AlertTriangle,
-  Database,
   FileText,
-  Phone,
-  MapPin,
-  AtSign,
-  Shield,
   Save,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { dbService, hashPasswordSimple, type UserRecord } from "@/services/dbService";
+import { dbService, type UserRecord } from "@/services/dbService";
 import { authService } from "@/services/authService";
 
 export function SettingsPage() {
@@ -45,6 +39,7 @@ export function SettingsPage() {
   const [profileMessage, setProfileMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Password Form States
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -83,7 +78,6 @@ export function SettingsPage() {
       }
 
       const updated = await dbService.updateUserProfile({
-        email: currentUser.email,
         name: name.trim(),
         username: username.trim() || null,
         phone: phone.trim() || null,
@@ -92,10 +86,16 @@ export function SettingsPage() {
 
       if (updated) {
         setCurrentUser(updated);
+        authService.applyUser(updated);
         setProfileMessage({ type: "success", text: "Profil berhasil diperbarui dan tersimpan di database." });
       } else {
         setProfileMessage({ type: "error", text: "Gagal memperbarui data profil." });
       }
+    } catch (err) {
+      setProfileMessage({
+        type: "error",
+        text: (err as Error).message || "Gagal memperbarui data profil.",
+      });
     } finally {
       setProfileLoading(false);
     }
@@ -106,6 +106,10 @@ export function SettingsPage() {
     if (!currentUser) return;
 
     setPasswordMessage(null);
+    if (!currentPassword) {
+      setPasswordMessage({ type: "error", text: "Kata sandi saat ini wajib diisi." });
+      return;
+    }
     if (newPassword.length < 6) {
       setPasswordMessage({ type: "error", text: "Kata sandi minimal 6 karakter." });
       return;
@@ -117,14 +121,16 @@ export function SettingsPage() {
 
     setPasswordLoading(true);
     try {
-      const updated = await dbService.updateUserPassword(currentUser.email, hashPasswordSimple(newPassword));
-      if (updated) {
-        setPasswordMessage({ type: "success", text: "Kata sandi berhasil diperbarui." });
-        setNewPassword("");
-        setConfirmPassword("");
-      } else {
-        setPasswordMessage({ type: "error", text: "Gagal memperbarui kata sandi." });
-      }
+      await dbService.updateUserPassword(currentPassword, newPassword);
+      setPasswordMessage({ type: "success", text: "Kata sandi berhasil diperbarui." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPasswordMessage({
+        type: "error",
+        text: (err as Error).message || "Gagal memperbarui kata sandi.",
+      });
     } finally {
       setPasswordLoading(false);
     }
@@ -164,35 +170,44 @@ export function SettingsPage() {
   };
 
   const handleResetDatabase = async () => {
-    await dbService.clearEntireDatabase();
-    setResetDialogOpen(false);
-    setDataMessage({ type: "success", text: "Seluruh data berhasil dihapus dari Neon PostgreSQL." });
+    try {
+      const deleted = await dbService.deleteAllMyEncryptedKtp();
+      setResetDialogOpen(false);
+      setDataMessage({
+        type: "success",
+        text:
+          deleted > 0
+            ? `${deleted} data KTP milik Anda berhasil dihapus.`
+            : "Tidak ada data KTP milik Anda yang perlu dihapus.",
+      });
+    } catch (err) {
+      setResetDialogOpen(false);
+      setDataMessage({
+        type: "error",
+        text: "Gagal menghapus data: " + (err as Error).message,
+      });
+    }
   };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto pb-12">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Pengaturan Akun & Profil</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Kelola informasi profil pribadi, keamanan kata sandi, dan cadangan database Anda.
-        </p>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-8 pb-12">
+      <PageHeader
+        title="Pengaturan akun"
+        description="Kelola profil, kata sandi, dan cadangan data KTP milik akun Anda."
+      />
 
       {/* 1. Pengaturan Profil Pengguna */}
       {currentUser && (
-        <Card className="border shadow-sm">
+        <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <User className="size-4 text-primary" />
-                Informasi Profil Pengguna
-              </CardTitle>
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
-                Role: {currentUser.role || "user"}
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="text-base">Informasi profil</CardTitle>
+              <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                {currentUser.role === "admin" ? "Admin" : "Pengguna"}
               </span>
             </div>
-            <CardDescription className="text-xs">
-              Ubah data pribadi, username, nomor telepon, dan alamat Anda.
+            <CardDescription className="text-sm">
+              Ubah nama, username, nomor telepon, dan alamat Anda.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -201,7 +216,7 @@ export function SettingsPage() {
                 variant={profileMessage.type === "error" ? "destructive" : "default"}
                 className={
                   profileMessage.type === "success"
-                    ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 py-2 text-xs"
+                    ? "border-success/30 bg-success/5 py-2 text-xs"
                     : "py-2 text-xs"
                 }
               >
@@ -214,68 +229,68 @@ export function SettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Nama Lengkap */}
                 <div className="space-y-1">
-                  <Label htmlFor="profName" className="text-xs font-semibold">Nama Lengkap</Label>
+                  <Label htmlFor="profName" className="text-sm font-medium">Nama lengkap</Label>
                   <Input
                     id="profName"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Nama Lengkap"
                     required
-                    className="text-xs"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Email (Read Only) */}
                 <div className="space-y-1">
-                  <Label className="text-xs font-semibold text-muted-foreground">Email (Akun)</Label>
+                  <Label className="text-sm font-medium text-muted-foreground">Email akun</Label>
                   <Input
                     value={currentUser.email}
                     disabled
-                    className="text-xs bg-muted text-muted-foreground cursor-not-allowed"
+                    className="cursor-not-allowed bg-muted text-muted-foreground"
                   />
                 </div>
 
                 {/* Username */}
                 <div className="space-y-1">
-                  <Label htmlFor="profUsername" className="text-xs font-semibold">Username</Label>
+                  <Label htmlFor="profUsername" className="text-sm font-medium">Username</Label>
                   <Input
                     id="profUsername"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="contoh: muhammad_ali"
-                    className="text-xs"
+                    className="text-sm"
                   />
                 </div>
 
                 {/* Nomor HP */}
                 <div className="space-y-1">
-                  <Label htmlFor="profPhone" className="text-xs font-semibold">Nomor HP / WhatsApp</Label>
+                  <Label htmlFor="profPhone" className="text-sm font-medium">Nomor HP / WhatsApp</Label>
                   <Input
                     id="profPhone"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="081234567890"
-                    className="text-xs"
+                    className="text-sm"
                   />
                 </div>
               </div>
 
               {/* Alamat Lengkap */}
               <div className="space-y-1">
-                <Label htmlFor="profAddress" className="text-xs font-semibold">Alamat Lengkap</Label>
+                <Label htmlFor="profAddress" className="text-sm font-medium">Alamat lengkap</Label>
                 <Input
                   id="profAddress"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Jl. Sudirman No. 123, Jakarta..."
-                  className="text-xs"
+                  className="text-sm"
                 />
               </div>
 
               <div className="flex justify-end pt-1">
-                <Button type="submit" size="sm" disabled={profileLoading} className="text-xs font-semibold gap-1.5">
+                <Button type="submit" size="sm" disabled={profileLoading} className="h-8 gap-1.5 text-xs font-medium">
                   <Save className="size-3.5" />
-                  {profileLoading ? "Menyimpan..." : "Simpan Profil"}
+                  {profileLoading ? "Menyimpan…" : "Simpan profil"}
                 </Button>
               </div>
             </form>
@@ -285,14 +300,11 @@ export function SettingsPage() {
 
       {/* 2. Keamanan & Ganti Kata Sandi */}
       {currentUser && (
-        <Card className="border shadow-sm">
+        <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Lock className="size-4 text-primary" />
-              Keamanan Akun & Kata Sandi
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Perbarui kata sandi login akun Anda secara berkala untuk menjaga keamanan.
+            <CardTitle className="text-base">Keamanan akun</CardTitle>
+            <CardDescription className="text-sm">
+              Perbarui kata sandi login secara berkala untuk menjaga keamanan akun.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -301,7 +313,7 @@ export function SettingsPage() {
                 variant={passwordMessage.type === "error" ? "destructive" : "default"}
                 className={
                   passwordMessage.type === "success"
-                    ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 py-2 text-xs"
+                    ? "border-success/30 bg-success/5 py-2 text-xs"
                     : "py-2 text-xs"
                 }
               >
@@ -311,33 +323,49 @@ export function SettingsPage() {
             )}
 
             <form onSubmit={handleUpdatePassword} className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="currentPass" className="text-sm font-medium">
+                  Kata sandi saat ini
+                </Label>
+                <Input
+                  id="currentPass"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi yang sedang digunakan"
+                  className="text-sm"
+                  autoComplete="current-password"
+                />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="newPass" className="text-xs font-semibold">Kata Sandi Baru</Label>
+                  <Label htmlFor="newPass" className="text-sm font-medium">Kata sandi baru</Label>
                   <Input
                     id="newPass"
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Min. 6 karakter"
-                    className="text-xs"
+                    className="text-sm"
+                    autoComplete="new-password"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="confirmPass" className="text-xs font-semibold">Konfirmasi Kata Sandi Baru</Label>
+                  <Label htmlFor="confirmPass" className="text-sm font-medium">Konfirmasi kata sandi baru</Label>
                   <Input
                     id="confirmPass"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Ketik ulang kata sandi"
-                    className="text-xs"
+                    className="text-sm"
+                    autoComplete="new-password"
                   />
                 </div>
               </div>
               <div className="flex justify-end pt-1">
-                <Button type="submit" size="sm" variant="outline" disabled={passwordLoading} className="text-xs font-semibold">
-                  {passwordLoading ? "Memperbarui..." : "Perbarui Kata Sandi"}
+                <Button type="submit" size="sm" variant="outline" disabled={passwordLoading} className="h-8 text-xs font-medium">
+                  {passwordLoading ? "Memperbarui…" : "Perbarui kata sandi"}
                 </Button>
               </div>
             </form>
@@ -346,14 +374,12 @@ export function SettingsPage() {
       )}
 
       {/* 3. Backup & Manajemen Data */}
-      <Card className="border shadow-sm">
+      <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Database className="size-4 text-primary" />
-            Cadangan Data & Reset
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Ekspor atau impor salinan data terenkripsi KTP dan reset database jika diperlukan.
+          <CardTitle className="text-base">Cadangan & penghapusan data</CardTitle>
+          <CardDescription className="text-sm">
+            Ekspor atau impor salinan data KTP terenkripsi milik Anda. Penghapusan hanya
+            berlaku untuk data akun Anda sendiri.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -362,7 +388,7 @@ export function SettingsPage() {
               variant={dataMessage.type === "error" ? "destructive" : "default"}
               className={
                 dataMessage.type === "success"
-                  ? "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 py-2 text-xs"
+                  ? "border-success/30 bg-success/5 py-2 text-xs"
                   : "py-2 text-xs"
               }
             >
@@ -371,72 +397,84 @@ export function SettingsPage() {
             </Alert>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-xl border bg-muted/20 flex flex-col justify-between gap-3">
-              <div>
-                <h4 className="font-semibold text-xs text-foreground">Ekspor Backup</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Unduh data terenkripsi dalam format JSON.</p>
+          <ul className="divide-y divide-border/70 border-t border-border/70">
+            <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h4 className="text-sm font-medium text-foreground">Ekspor cadangan</h4>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Unduh data terenkripsi milik Anda dalam format JSON.
+                </p>
               </div>
-              <Button onClick={handleExportDatabase} variant="outline" size="sm" className="gap-1.5 w-full text-xs">
+              <Button
+                onClick={handleExportDatabase}
+                variant="outline"
+                size="sm"
+                className="h-8 w-fit shrink-0 gap-1.5 text-xs font-medium"
+              >
                 <Download className="size-3.5" />
                 Unduh JSON
               </Button>
-            </div>
+            </li>
 
-            <div className="p-3.5 rounded-xl border bg-muted/20 flex flex-col justify-between gap-3">
-              <div>
-                <h4 className="font-semibold text-xs text-foreground">Impor Data</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Pulihkan database dari file JSON backup.</p>
+            <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h4 className="text-sm font-medium text-foreground">Impor cadangan</h4>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Pulihkan data dari berkas JSON yang pernah Anda unduh.
+                </p>
               </div>
-              <label className="w-full">
-                <Button variant="outline" size="sm" asChild className="gap-1.5 w-full text-xs cursor-pointer">
+              <label className="w-fit shrink-0">
+                <Button variant="outline" size="sm" asChild className="h-8 cursor-pointer gap-1.5 text-xs font-medium">
                   <span>
                     <Upload className="size-3.5" />
-                    Pilih File
+                    Pilih berkas
                   </span>
                 </Button>
                 <input type="file" accept=".json" className="hidden" onChange={handleImportDatabase} />
               </label>
-            </div>
+            </li>
 
-            <div className="p-3.5 rounded-xl border border-destructive/20 bg-destructive/5 flex flex-col justify-between gap-3">
-              <div>
-                <h4 className="font-semibold text-xs text-destructive">Hapus Semua Data</h4>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Kosongkan seluruh data KTP tersimpan.</p>
+            <li className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h4 className="text-sm font-medium text-foreground">Hapus semua data KTP saya</h4>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Mengosongkan dokumen KTP milik akun Anda saja, tanpa menyentuh data pengguna lain.
+                </p>
               </div>
               <Button
                 onClick={() => setResetDialogOpen(true)}
                 variant="destructive"
                 size="sm"
-                className="gap-1.5 w-full text-xs"
+                className="h-8 w-fit shrink-0 gap-1.5 text-xs font-medium"
               >
                 <Trash2 className="size-3.5" />
-                Reset Data
+                Hapus data
               </Button>
-            </div>
-          </div>
+            </li>
+          </ul>
+
+          <p className="flex items-start gap-2 text-xs text-muted-foreground">
+            <FileText className="mt-0.5 size-3.5 shrink-0" />
+            <span>
+              Database terhubung dan hanya menyimpan ciphertext — kunci dekripsi tidak pernah
+              disimpan di server.
+            </span>
+          </p>
         </CardContent>
       </Card>
-
-      {/* Catatan Database */}
-      <div className="flex items-start gap-2 px-3.5 py-3 rounded-lg border bg-muted/30 text-xs text-muted-foreground">
-        <FileText className="size-4 shrink-0 mt-0.5 text-primary" />
-        <span>
-          Database aktif terhubung langsung ke <strong>Neon Serverless PostgreSQL Cloud</strong> dengan <strong>Prisma ORM</strong>.
-        </span>
-      </div>
 
       {/* Konfirmasi Dialog Reset */}
       <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive text-base">Hapus Semua Data?</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs">
-              Tindakan ini akan mengosongkan seluruh data dokumen KTP terenkripsi dari database Neon PostgreSQL secara permanen.
+            <AlertDialogTitle className="text-destructive text-base">Hapus Semua Data KTP Anda?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              Tindakan ini akan mengosongkan seluruh data dokumen KTP terenkripsi milik akun Anda
+              dari database secara permanen. Data milik pengguna lain tidak terpengaruh.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
+            <AlertDialogCancel className="text-sm">Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleResetDatabase}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs"

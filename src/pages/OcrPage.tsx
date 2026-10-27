@@ -1,13 +1,25 @@
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ShieldAlert, ImagePlus, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { UploadKtp } from "@/components/UploadKtp";
 import { ImageEditor } from "@/components/ImageEditor";
 import { OCRProgress } from "@/components/OCRProgress";
 import { OCRResult } from "@/components/OCRResult";
 import { useKtpStore } from "@/store/ktpStore";
 import { useOCR } from "@/hooks/useOCR";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   encryptUtf8WithBlowfish,
   generateRandomIv,
@@ -70,24 +82,26 @@ export function OcrPage({ onNavigate }: OcrPageProps) {
       const ivHex = bytesToHex(ivBytes);
 
       // 2. Enkripsi setiap field input formulir KTP dengan algoritma Blowfish 64-bit CBC
-      const encProvinsi = encryptUtf8WithBlowfish(formData.provinsi || "-", key, ivHex);
-      const encKabupaten = encryptUtf8WithBlowfish(formData.kabupatenKota || "-", key, ivHex);
-      const encNik = encryptUtf8WithBlowfish(formData.nik || "-", key, ivHex);
-      const encNama = encryptUtf8WithBlowfish(formData.nama || "-", key, ivHex);
-      const encTempatLahir = encryptUtf8WithBlowfish(formData.tempatLahir || "-", key, ivHex);
-      const encTanggalLahir = encryptUtf8WithBlowfish(formData.tanggalLahir || "-", key, ivHex);
-      const encJenisKelamin = encryptUtf8WithBlowfish(formData.jenisKelamin || "-", key, ivHex);
-      const encGolDarah = encryptUtf8WithBlowfish(formData.golonganDarah || "-", key, ivHex);
-      const encAlamat = encryptUtf8WithBlowfish(formData.alamat || "-", key, ivHex);
-      const encRt = encryptUtf8WithBlowfish(formData.rt || "-", key, ivHex);
-      const encRw = encryptUtf8WithBlowfish(formData.rw || "-", key, ivHex);
-      const encKelDesa = encryptUtf8WithBlowfish(formData.kelurahanDesa || "-", key, ivHex);
-      const encKecamatan = encryptUtf8WithBlowfish(formData.kecamatan || "-", key, ivHex);
-      const encAgama = encryptUtf8WithBlowfish(formData.agama || "-", key, ivHex);
-      const encStatusPerkawinan = encryptUtf8WithBlowfish(formData.statusPerkawinan || "-", key, ivHex);
-      const encPekerjaan = encryptUtf8WithBlowfish(formData.pekerjaan || "-", key, ivHex);
-      const encKewarganegaraan = encryptUtf8WithBlowfish(formData.kewarganegaraan || "-", key, ivHex);
-      const encBerlakuHingga = encryptUtf8WithBlowfish(formData.berlakuHingga || "-", key, ivHex);
+      // Field kosong tetap dienkripsi sebagai string kosong (bukan placeholder "-")
+      // agar hasil dekripsi tidak menampilkan data palsu.
+      const encProvinsi = encryptUtf8WithBlowfish(formData.provinsi || "", key, ivHex);
+      const encKabupaten = encryptUtf8WithBlowfish(formData.kabupatenKota || "", key, ivHex);
+      const encNik = encryptUtf8WithBlowfish(formData.nik || "", key, ivHex);
+      const encNama = encryptUtf8WithBlowfish(formData.nama || "", key, ivHex);
+      const encTempatLahir = encryptUtf8WithBlowfish(formData.tempatLahir || "", key, ivHex);
+      const encTanggalLahir = encryptUtf8WithBlowfish(formData.tanggalLahir || "", key, ivHex);
+      const encJenisKelamin = encryptUtf8WithBlowfish(formData.jenisKelamin || "", key, ivHex);
+      const encGolDarah = encryptUtf8WithBlowfish(formData.golonganDarah || "", key, ivHex);
+      const encAlamat = encryptUtf8WithBlowfish(formData.alamat || "", key, ivHex);
+      const encRt = encryptUtf8WithBlowfish(formData.rt || "", key, ivHex);
+      const encRw = encryptUtf8WithBlowfish(formData.rw || "", key, ivHex);
+      const encKelDesa = encryptUtf8WithBlowfish(formData.kelurahanDesa || "", key, ivHex);
+      const encKecamatan = encryptUtf8WithBlowfish(formData.kecamatan || "", key, ivHex);
+      const encAgama = encryptUtf8WithBlowfish(formData.agama || "", key, ivHex);
+      const encStatusPerkawinan = encryptUtf8WithBlowfish(formData.statusPerkawinan || "", key, ivHex);
+      const encPekerjaan = encryptUtf8WithBlowfish(formData.pekerjaan || "", key, ivHex);
+      const encKewarganegaraan = encryptUtf8WithBlowfish(formData.kewarganegaraan || "", key, ivHex);
+      const encBerlakuHingga = encryptUtf8WithBlowfish(formData.berlakuHingga || "", key, ivHex);
 
       const recordId = "ktp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
       const currentUser = authService.getCurrentUser();
@@ -148,7 +162,12 @@ export function OcrPage({ onNavigate }: OcrPageProps) {
       store.progress.stage !== "error");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      <PageHeader
+        title="Scan & enkripsi KTP"
+        description="Pindai KTP, periksa hasil pembacaan, lalu enkripsi setiap field dengan kunci rahasia Anda."
+      />
+
       {store.error && (
         <Alert variant="destructive" className="mx-auto max-w-3xl">
           <AlertTriangle className="size-4" />
@@ -192,6 +211,46 @@ export function OcrPage({ onNavigate }: OcrPageProps) {
           setKeyError={setKeyError}
         />
       )}
+
+      {/* POPUP MODAL VALIDASI DOKUMEN BUKAN KTP */}
+      <AlertDialog
+        open={Boolean(store.error)}
+        onOpenChange={(open) => {
+          if (!open) store.setError(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full border border-destructive/20 bg-destructive/10 text-destructive">
+              <ShieldAlert className="size-5" />
+            </div>
+            <AlertDialogTitle className="text-center text-base font-semibold tracking-tight">
+              Dokumen tidak lolos validasi
+            </AlertDialogTitle>
+            <AlertDialogDescription className="pt-1 text-center text-sm leading-relaxed">
+              {store.error}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="mt-2 flex-col gap-2 sm:flex-row">
+            <AlertDialogCancel
+              onClick={() => store.setError(null)}
+              className="w-full text-sm sm:w-auto"
+            >
+              Tutup
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                store.setError(null);
+                store.reset();
+              }}
+              className="w-full gap-1.5 text-sm sm:w-auto"
+            >
+              <ImagePlus className="size-3.5" /> Unggah ulang KTP
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

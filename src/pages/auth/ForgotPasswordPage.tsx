@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, KeyRound, Lock, ArrowLeft, CheckCircle2, AlertTriangle, Send } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Send } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,8 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
       if (res.success) {
         setStep(2);
         setSuccessMessage(
-          `Kode OTP 6-digit telah dikirimkan ke email (${email}). Silakan cek kotak masuk email simulasi di pojok kanan atas.`,
+          res.message ||
+            `Jika email (${email}) terdaftar, kode OTP 6-digit telah dikirim. Periksa kotak masuk email Anda.`,
         );
       } else {
         setError(res.error || "Gagal mengirimkan kode verifikasi.");
@@ -69,31 +70,28 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
   };
 
   return (
-    <div className="max-w-md mx-auto py-8">
-      <Card className="border-2 shadow-lg">
-        <CardHeader className="space-y-1 text-center">
-          <div className="size-12 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center mb-2">
-            <KeyRound className="size-6" />
-          </div>
-          <CardTitle className="text-xl font-bold">Lupa Kata Sandi</CardTitle>
-          <CardDescription className="text-xs">
+    <div className="mx-auto flex w-full max-w-sm flex-col py-10">
+      <Card>
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-lg font-semibold tracking-tight">Lupa kata sandi</CardTitle>
+          <CardDescription className="text-sm">
             {step === 1
-              ? "Masukkan email akun Anda untuk menerima kode verifikasi OTP"
-              : "Masukkan kode OTP dari email dan kata sandi baru Anda"}
+              ? "Masukkan email akun Anda untuk menerima kode verifikasi."
+              : "Masukkan kode OTP dari email dan kata sandi baru Anda."}
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           {error && (
-            <Alert variant="destructive" className="py-2.5 text-xs mb-4">
+            <Alert variant="destructive" className="mb-4 py-2">
               <AlertTriangle className="size-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           {successMessage && (
-            <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 py-2.5 text-xs mb-4">
-              <CheckCircle2 className="size-4 text-emerald-600" />
+            <Alert className="mb-4 border-success/30 bg-success/5 py-2">
+              <CheckCircle2 className="size-4 text-success" />
               <AlertDescription>{successMessage}</AlertDescription>
             </Alert>
           )}
@@ -101,7 +99,9 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
           {step === 1 ? (
             <form onSubmit={handleRequestOtp} className="space-y-4">
               <div className="space-y-1.5">
-                <Label htmlFor="forgotEmail" className="text-xs font-semibold">Email Terdaftar</Label>
+                <Label htmlFor="forgotEmail" className="text-sm font-medium">
+                  Email terdaftar
+                </Label>
                 <Input
                   id="forgotEmail"
                   type="email"
@@ -109,18 +109,19 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="text-xs"
                 />
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full text-xs font-semibold gap-2">
-                <Send className="size-4" /> {loading ? "Mengirimkan Kode..." : "Kirim Kode Verifikasi Email"}
+              <Button type="submit" disabled={loading} className="w-full gap-2">
+                <Send className="size-4" /> {loading ? "Mengirim…" : "Kirim kode verifikasi"}
               </Button>
             </form>
           ) : (
             <form onSubmit={handleConfirmReset} className="space-y-3.5">
-              <div className="space-y-1">
-                <Label htmlFor="otpInput" className="text-xs font-semibold">Kode OTP 6-Digit</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="otpInput" className="text-sm font-medium">
+                  Kode OTP 6 digit
+                </Label>
                 <Input
                   id="otpInput"
                   placeholder="123456"
@@ -128,15 +129,17 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
                   required
-                  className="font-mono text-center tracking-widest text-lg font-bold"
+                  className="text-center font-mono text-lg tracking-[0.3em]"
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  Lihat kode pada menu <strong>Email Masuk</strong> di header atas.
+                <p className="text-xs text-muted-foreground">
+                  Periksa kotak masuk email Anda untuk membaca kode OTP.
                 </p>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="newPassInput" className="text-xs font-semibold">Kata Sandi Baru</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassInput" className="text-sm font-medium">
+                  Kata sandi baru
+                </Label>
                 <Input
                   id="newPassInput"
                   type="password"
@@ -144,12 +147,13 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
-                  className="text-xs"
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="confirmPassInput" className="text-xs font-semibold">Konfirmasi Kata Sandi</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassInput" className="text-sm font-medium">
+                  Konfirmasi kata sandi
+                </Label>
                 <Input
                   id="confirmPassInput"
                   type="password"
@@ -157,25 +161,24 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  className="text-xs"
                 />
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full text-xs font-semibold gap-2 mt-2">
-                <CheckCircle2 className="size-4" /> {loading ? "Memproses..." : "Perbarui Kata Sandi"}
+              <Button type="submit" disabled={loading} className="mt-2 w-full gap-2">
+                <CheckCircle2 className="size-4" /> {loading ? "Memproses…" : "Perbarui kata sandi"}
               </Button>
             </form>
           )}
         </CardContent>
 
-        <CardFooter className="flex justify-between border-t pt-4">
+        <CardFooter className="justify-between border-t border-border/70 pt-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onNavigate("login")}
-            className="text-xs gap-1"
+            className="-ml-2 h-8 gap-1 text-xs text-muted-foreground"
           >
-            <ArrowLeft className="size-3.5" /> Kembali ke Login
+            <ArrowLeft className="size-3.5" /> Kembali
           </Button>
 
           {step === 2 && (
@@ -184,9 +187,9 @@ export function ForgotPasswordPage({ onNavigate }: ForgotPasswordPageProps) {
               size="sm"
               onClick={handleRequestOtp}
               disabled={loading}
-              className="text-xs"
+              className="h-8 text-xs font-medium"
             >
-              Kirim Ulang OTP
+              Kirim ulang OTP
             </Button>
           )}
         </CardFooter>

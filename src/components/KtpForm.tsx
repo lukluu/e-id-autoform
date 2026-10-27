@@ -17,7 +17,9 @@ import {
 import {
   PROVINSI_LIST,
   getKabupatenKota,
+  getKabupatenKotaAsync,
   getKecamatan,
+  getKecamatanAsync,
   getDesaAsync,
   matchDesa,
   resolveCompleteWilayahHierarchy,
@@ -36,7 +38,6 @@ import { ktpSchema, padRtRw, type KtpFormValues } from "@/utils/validation";
 interface KtpFormProps {
   data: KtpData;
   onSubmitData: (values: KtpData, secretKey: string) => void;
-  onReset: () => void;
   onClear: () => void;
   isEncrypting?: boolean | undefined;
   secretKey: string;
@@ -57,8 +58,11 @@ interface FieldShellProps {
 function FieldShell({ label, field, errors, children }: FieldShellProps) {
   const error = errors[field];
   return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={field} className={error ? "text-destructive" : ""}>
+    <div className="flex flex-col gap-1.5">
+      <Label
+        htmlFor={field}
+        className={`text-sm font-medium ${error ? "text-destructive" : ""}`}
+      >
         {label}
       </Label>
       {children}
@@ -191,7 +195,6 @@ function DesaCombobox({ value, onChange, options, placeholder }: DesaComboboxPro
 export function KtpForm({
   data,
   onSubmitData,
-  onReset,
   onClear,
   isEncrypting,
   secretKey,
@@ -278,21 +281,34 @@ export function KtpForm({
 
   /** 2. Reaktif: Setiap kali provinsi berubah (oleh user), sinkronkan opsi kabupaten */
   useEffect(() => {
+    let active = true;
     if (provinsi) {
       setKabupatenOptions(getKabupatenKota(provinsi));
+      void getKabupatenKotaAsync(provinsi).then((list) => {
+        if (active && list.length > 0) setKabupatenOptions(list);
+      });
     } else {
       setKabupatenOptions([]);
     }
+    return () => {
+      active = false;
+    };
   }, [provinsi]);
 
   /** 3. Reaktif: Setiap kali kabupaten berubah (oleh user), sinkronkan opsi kecamatan */
   useEffect(() => {
+    let active = true;
     if (provinsi && kabupatenKota) {
-      const list = getKecamatan(provinsi, kabupatenKota);
-      setKecamatanOptions(list);
+      setKecamatanOptions(getKecamatan(provinsi, kabupatenKota));
+      void getKecamatanAsync(provinsi, kabupatenKota).then((list) => {
+        if (active && list.length > 0) setKecamatanOptions(list);
+      });
     } else {
       setKecamatanOptions([]);
     }
+    return () => {
+      active = false;
+    };
   }, [provinsi, kabupatenKota]);
 
   /** 4. Reaktif: Setiap kali kecamatan berubah, muat daftar desa/kelurahan dari database/API */
@@ -383,14 +399,21 @@ export function KtpForm({
           setKeyError("Kunci enkripsi rahasia wajib diisi.");
           return;
         }
-        onSubmitData(values as KtpData, secretKey.trim());
+        onSubmitData(
+          {
+            ...values,
+            rt: padRtRw(values.rt),
+            rw: padRtRw(values.rw),
+          } as KtpData,
+          secretKey.trim(),
+        );
       })}
       className="space-y-4"
       autoComplete="off"
     >
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Informasi Identitas</CardTitle>
+          <CardTitle className="text-base">Informasi identitas</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -406,20 +429,20 @@ export function KtpForm({
             </FieldShell>
           </div>
           <div className="sm:col-span-2">
-            <FieldShell label="Nama Lengkap" field="nama" errors={errors}>
+            <FieldShell label="Nama lengkap" field="nama" errors={errors}>
               <Input id="nama" {...register("nama")} />
             </FieldShell>
           </div>
-          <FieldShell label="Tempat Lahir" field="tempatLahir" errors={errors}>
+          <FieldShell label="Tempat lahir" field="tempatLahir" errors={errors}>
             <Input id="tempatLahir" {...register("tempatLahir")} />
           </FieldShell>
-          <FieldShell label="Tanggal Lahir" field="tanggalLahir" errors={errors}>
+          <FieldShell label="Tanggal lahir" field="tanggalLahir" errors={errors}>
             <Input id="tanggalLahir" type="date" {...register("tanggalLahir")} />
           </FieldShell>
-          <FieldShell label="Jenis Kelamin" field="jenisKelamin" errors={errors}>
+          <FieldShell label="Jenis kelamin" field="jenisKelamin" errors={errors}>
             <SelectField field="jenisKelamin" options={JENIS_KELAMIN} control={control} />
           </FieldShell>
-          <FieldShell label="Golongan Darah" field="golonganDarah" errors={errors}>
+          <FieldShell label="Golongan darah" field="golonganDarah" errors={errors}>
             <SelectField field="golonganDarah" options={GOLONGAN_DARAH} control={control} />
           </FieldShell>
         </CardContent>
@@ -427,7 +450,7 @@ export function KtpForm({
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Informasi Alamat</CardTitle>
+          <CardTitle className="text-base">Informasi alamat</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -577,13 +600,13 @@ export function KtpForm({
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Informasi Lainnya</CardTitle>
+          <CardTitle className="text-base">Informasi lainnya</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2">
           <FieldShell label="Agama" field="agama" errors={errors}>
             <SelectField field="agama" options={AGAMA} control={control} />
           </FieldShell>
-          <FieldShell label="Status Perkawinan" field="statusPerkawinan" errors={errors}>
+          <FieldShell label="Status perkawinan" field="statusPerkawinan" errors={errors}>
             <SelectField field="statusPerkawinan" options={STATUS_PERKAWINAN} control={control} />
           </FieldShell>
           <FieldShell label="Pekerjaan" field="pekerjaan" errors={errors}>
@@ -593,7 +616,7 @@ export function KtpForm({
             <SelectField field="kewarganegaraan" options={KEWARGANEGARAAN} control={control} />
           </FieldShell>
           <div className="sm:col-span-2">
-            <FieldShell label="Berlaku Hingga" field="berlakuHingga" errors={errors}>
+            <FieldShell label="Berlaku hingga" field="berlakuHingga" errors={errors}>
               <div className="flex gap-2">
                 <Input
                   id="berlakuHingga"
@@ -616,15 +639,15 @@ export function KtpForm({
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Kunci Enkripsi</CardTitle>
-          <CardDescription className="text-xs">
+          <CardTitle className="text-base">Kunci enkripsi</CardTitle>
+          <CardDescription className="text-sm">
             Kunci rahasia untuk mengenkripsi data KTP. Simpan baik-baik — diperlukan saat dekripsi.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="space-y-1.5">
-            <Label htmlFor="secretKey" className="text-xs font-semibold">
-              Kunci Rahasia <span className="text-destructive ml-0.5">*</span>
+            <Label htmlFor="secretKey" className="text-sm font-medium">
+              Kunci rahasia <span className="text-destructive ml-0.5">*</span>
             </Label>
             <div className="relative flex items-center max-w-md">
               <Input
@@ -664,22 +687,28 @@ export function KtpForm({
       )}
 
       <div className="flex flex-wrap gap-2 pb-4">
-        <Button type="submit" disabled={isEncrypting} className="gap-2 font-medium shadow-sm">
+        <Button type="submit" disabled={isEncrypting} className="gap-2">
           {isEncrypting ? (
             <>
-              <Loader2 className="size-4 animate-spin" /> Mengenkripsi & Menyimpan...
+              <Loader2 className="size-4 animate-spin" /> Mengenkripsi & menyimpan…
             </>
           ) : (
             <>
-              <Lock className="size-4" /> Simpan & Enkripsi KTP
+              <Lock className="size-4" /> Simpan & enkripsi KTP
             </>
           )}
         </Button>
-        <Button type="button" variant="outline" disabled={isEncrypting} className="gap-2" onClick={onReset}>
-          <RotateCcw className="size-4" /> Kembalikan Hasil OCR
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isEncrypting}
+          className="gap-2"
+          onClick={() => reset(data as KtpFormValues)}
+        >
+          <RotateCcw className="size-4" /> Kembalikan hasil OCR
         </Button>
         <Button type="button" variant="ghost" disabled={isEncrypting} className="gap-2 text-destructive hover:text-destructive" onClick={onClear}>
-          <Trash2 className="size-4" /> Hapus Data
+          <Trash2 className="size-4" /> Hapus data
         </Button>
       </div>
     </form>

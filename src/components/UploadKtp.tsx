@@ -46,16 +46,7 @@ export function UploadKtp({ onImageReady }: UploadKtpProps) {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5">
       <Card className="overflow-hidden">
-        <CardContent className="space-y-5 p-5 sm:p-8">
-          <div className="space-y-1.5 text-center">
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Scan KTP Indonesia
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Unggah gambar KTP atau gunakan kamera. Data diproses langsung di perangkat Anda.
-            </p>
-          </div>
-
+        <CardContent className="space-y-5 p-5 sm:p-6">
           {cameraOpen ? (
             <div className="space-y-3">
               <CameraCapture
@@ -106,15 +97,17 @@ export function UploadKtp({ onImageReady }: UploadKtpProps) {
                   void handleFile(e.dataTransfer.files[0]);
                 }}
                 onClick={() => galleryInputRef.current?.click()}
-                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
+                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-10 text-center transition-colors ${
                   dragging
                     ? "border-primary bg-primary/5"
-                    : "border-border bg-muted/40 hover:border-primary/50"
+                    : "border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
                 }`}
               >
-                <UploadCloud className="size-8 text-muted-foreground" />
-                <p className="text-sm font-medium">atau drag &amp; drop gambar KTP di sini</p>
-                <p className="text-xs text-muted-foreground">Format JPG, JPEG, PNG — maks. 12MB</p>
+                <UploadCloud className="size-7 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">
+                  atau lepas gambar KTP di sini
+                </p>
+                <p className="text-xs text-muted-foreground">JPG, JPEG, atau PNG — maks. 12 MB</p>
               </div>
             </>
           )}

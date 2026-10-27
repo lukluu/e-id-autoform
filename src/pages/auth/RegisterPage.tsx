@@ -44,28 +44,27 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
   };
 
   return (
-    <div className="max-w-md mx-auto py-8">
-      <Card className="border-2 shadow-lg">
-        <CardHeader className="space-y-1 text-center pb-3">
-          <div className="size-12 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center mb-1">
-            <UserPlus className="size-6" />
-          </div>
-          <CardTitle className="text-xl font-bold">Daftar Akun Baru</CardTitle>
-          <CardDescription className="text-xs">
-            Daftarkan akun untuk mengelola dan mengenkripsi dokumen KTP Anda
+    <div className="mx-auto flex w-full max-w-sm flex-col py-10">
+      <Card>
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-lg font-semibold tracking-tight">Buat akun</CardTitle>
+          <CardDescription className="text-sm">
+            Akun ini menyimpan dokumen KTP yang dienkripsi dengan kunci Anda sendiri.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-3.5">
             {error && (
-              <Alert variant="destructive" className="py-2 text-xs">
+              <Alert variant="destructive" className="py-2">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="regName" className="text-xs font-semibold">Nama Lengkap</Label>
+              <Label htmlFor="regName" className="text-sm font-medium">
+                Nama lengkap
+              </Label>
               <Input
                 id="regName"
                 placeholder="Contoh: Muhammad Ali"
@@ -73,12 +72,13 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 maxLength={100}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="regEmail" className="text-xs font-semibold">Email Pengguna</Label>
+              <Label htmlFor="regEmail" className="text-sm font-medium">
+                Email
+              </Label>
               <Input
                 id="regEmail"
                 type="email"
@@ -87,12 +87,13 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 maxLength={100}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="regPassword" className="text-xs font-semibold">Kata Sandi</Label>
+              <Label htmlFor="regPassword" className="text-sm font-medium">
+                Kata sandi
+              </Label>
               <div className="relative flex items-center">
                 <Input
                   id="regPassword"
@@ -101,20 +102,23 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="text-xs pr-9"
+                  className="pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2.5 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                 >
-                  {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="regConfirmPassword" className="text-xs font-semibold">Konfirmasi Kata Sandi</Label>
+              <Label htmlFor="regConfirmPassword" className="text-sm font-medium">
+                Konfirmasi kata sandi
+              </Label>
               <Input
                 id="regConfirmPassword"
                 type={showPassword ? "text" : "password"}
@@ -122,24 +126,23 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="text-xs"
               />
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full text-xs font-semibold gap-2 mt-3">
-              <UserPlus className="size-4" /> {loading ? "Mendaftarkan Akun..." : "Daftar Akun"}
+            <Button type="submit" disabled={loading} className="mt-2 w-full gap-2">
+              <UserPlus className="size-4" /> {loading ? "Mendaftarkan…" : "Daftar"}
             </Button>
           </form>
         </CardContent>
 
-        <CardFooter className="flex justify-center border-t pt-3">
-          <p className="text-xs text-muted-foreground">
-            Sudah memiliki akun?{" "}
+        <CardFooter className="justify-center border-t border-border/70 pt-4">
+          <p className="text-sm text-muted-foreground">
+            Sudah punya akun?{" "}
             <button
               onClick={() => onNavigate("login")}
-              className="text-primary font-semibold hover:underline inline-flex items-center gap-1"
+              className="font-medium text-primary hover:underline"
             >
-              Masuk di sini
+              Masuk
             </button>
           </p>
         </CardFooter>

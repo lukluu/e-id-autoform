@@ -1,18 +1,5 @@
 import { useState } from "react";
-import {
-  Shield,
-  Activity,
-  Zap,
-  CheckCircle2,
-  AlertTriangle,
-  Play,
-  RotateCcw,
-  Sparkles,
-  BarChart3,
-  Layers,
-  Cpu,
-  Fingerprint,
-} from "lucide-react";
+import { Play } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   calculateAvalancheEffect,
   calculateShannonEntropy,
@@ -92,46 +80,40 @@ export function SecurityAnalysisPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <Shield className="size-6 text-primary" /> Modul Analisis Keamanan Kriptografi Blowfish
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Instrumen pengujian empiris dan matematis algoritma Blowfish untuk keperluan penelitian tugas akhir & analisis keamanan data KTP.
-        </p>
-      </div>
+    <div className="space-y-7 pb-6">
+      <PageHeader
+        title="Analisis kriptografi"
+        description="Uji avalanche effect, entropi Shannon, dan kecepatan Blowfish pada data KTP."
+        actions={<Badge variant="outline">16 putaran Feistel</Badge>}
+      />
 
       <Tabs defaultValue="avalanche" className="space-y-6">
-        <TabsList className="grid grid-cols-3 max-w-md">
+        <TabsList className="grid max-w-md grid-cols-3">
           <TabsTrigger value="avalanche" className="text-xs">
-            Avalanche Effect
+            Avalanche effect
           </TabsTrigger>
           <TabsTrigger value="entropy" className="text-xs">
-            Shannon Entropy
+            Entropi Shannon
           </TabsTrigger>
           <TabsTrigger value="benchmark" className="text-xs">
-            Benchmark Kecepatan
+            Benchmark
           </TabsTrigger>
         </TabsList>
 
         {/* ---------------- 1. AVALANCHE EFFECT ---------------- */}
         <TabsContent value="avalanche" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             <Card className="lg:col-span-5">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Fingerprint className="size-4 text-primary" /> Parameter Pengujian
-                </CardTitle>
+                <CardTitle className="text-sm font-semibold">Parameter pengujian</CardTitle>
                 <CardDescription className="text-xs">
-                  Uji pengaruh perubahan 1-bit input terhadap keluaran ciphertext (Strict Avalanche Criterion)
+                  Ukur pengaruh perubahan satu bit masukan terhadap ciphertext.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 text-xs">
+              <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="avalanchePlaintext" className="text-xs font-semibold">
-                    Plaintext Dokumen KTP
+                  <Label htmlFor="avalanchePlaintext" className="text-xs font-medium">
+                    Plaintext KTP
                   </Label>
                   <Textarea
                     id="avalanchePlaintext"
@@ -143,8 +125,8 @@ export function SecurityAnalysisPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="avalancheKey" className="text-xs font-semibold">
-                    Kunci Enkripsi (Secret Key)
+                  <Label htmlFor="avalancheKey" className="text-xs font-medium">
+                    Kunci enkripsi
                   </Label>
                   <Input
                     id="avalancheKey"
@@ -155,31 +137,31 @@ export function SecurityAnalysisPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">Mode Modifikasi 1-Bit:</Label>
+                  <Label className="text-xs font-medium">Mode modifikasi satu bit</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
                       variant={avalancheMode === "flip_plaintext_bit" ? "default" : "outline"}
                       size="sm"
                       onClick={() => setAvalancheMode("flip_plaintext_bit")}
-                      className="text-xs h-8"
+                      className="h-8 text-xs font-medium"
                     >
-                      Bit Plaintext
+                      Bit plaintext
                     </Button>
                     <Button
                       type="button"
                       variant={avalancheMode === "flip_key_bit" ? "default" : "outline"}
                       size="sm"
                       onClick={() => setAvalancheMode("flip_key_bit")}
-                      className="text-xs h-8"
+                      className="h-8 text-xs font-medium"
                     >
-                      Bit Kunci (Key)
+                      Bit kunci
                     </Button>
                   </div>
                 </div>
 
-                <Button onClick={handleRunAvalanche} className="w-full gap-2 mt-2">
-                  <Play className="size-4" /> Hitung Avalanche Effect
+                <Button onClick={handleRunAvalanche} className="w-full gap-2">
+                  <Play className="size-4" /> Hitung avalanche effect
                 </Button>
               </CardContent>
             </Card>
@@ -187,68 +169,76 @@ export function SecurityAnalysisPage() {
             {/* Hasil Avalanche Effect */}
             <Card className="lg:col-span-7">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Hasil Analisis Avalanche Effect</span>
-                  {avalancheResult && (
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                      Target Ideal: ~50%
-                    </Badge>
-                  )}
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Tingkat difusi bit melalui 16 putaran Feistel Network Blowfish
-                </CardDescription>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-sm font-semibold">Hasil analisis</CardTitle>
+                    <CardDescription className="mt-1 text-xs">
+                      Difusi bit melalui 16 putaran Feistel Network.
+                    </CardDescription>
+                  </div>
+                  {avalancheResult && <Badge variant="outline">Target ~50%</Badge>}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-5 text-xs">
+              <CardContent className="space-y-5">
                 {avalancheResult && (
                   <>
-                    <div className="grid grid-cols-3 gap-3 text-center">
-                      <div className="p-3 rounded-xl border bg-muted/30">
-                        <span className="text-muted-foreground text-[11px]">Total Bit</span>
-                        <p className="text-xl font-bold text-foreground mt-0.5">{avalancheResult.totalBits}</p>
+                    <dl className="grid grid-cols-3 divide-x divide-border rounded-lg border bg-card text-center">
+                      <div className="px-3 py-3">
+                        <dt className="text-[11px] text-muted-foreground">Total bit</dt>
+                        <dd className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
+                          {avalancheResult.totalBits}
+                        </dd>
                       </div>
-                      <div className="p-3 rounded-xl border bg-muted/30">
-                        <span className="text-muted-foreground text-[11px]">Bit Berubah (Flipped)</span>
-                        <p className="text-xl font-bold text-primary mt-0.5">{avalancheResult.flippedBits}</p>
+                      <div className="px-3 py-3">
+                        <dt className="text-[11px] text-muted-foreground">Bit berubah</dt>
+                        <dd className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
+                          {avalancheResult.flippedBits}
+                        </dd>
                       </div>
-                      <div className="p-3 rounded-xl border bg-primary/10 border-primary/30">
-                        <span className="text-primary font-semibold text-[11px]">Persentase Efek</span>
-                        <p className="text-2xl font-extrabold text-primary mt-0.5">
+                      <div className="px-3 py-3">
+                        <dt className="text-[11px] text-muted-foreground">Persentase</dt>
+                        <dd className="mt-0.5 text-xl font-semibold tabular-nums text-primary">
                           {avalancheResult.avalanchePercentage}%
-                        </p>
+                        </dd>
                       </div>
-                    </div>
+                    </dl>
 
                     <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span>Skor Strict Avalanche Criterion (SAC):</span>
-                        <span className="text-primary">{avalancheResult.avalanchePercentage}%</span>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          Strict Avalanche Criterion
+                        </span>
+                        <span className="font-medium tabular-nums text-foreground">
+                          {avalancheResult.avalanchePercentage}%
+                        </span>
                       </div>
-                      <Progress value={avalancheResult.avalanchePercentage} className="h-3" />
-                      <div className="flex justify-between text-[10px] text-muted-foreground">
-                        <span>0% (Sangat Buruk)</span>
-                        <span className="font-bold text-foreground">50% (Sempurna)</span>
-                        <span>100% (Inversi Penuh)</span>
+                      <Progress value={avalancheResult.avalanchePercentage} className="h-2" />
+                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>0%</span>
+                        <span>50% ideal</span>
+                        <span>100%</span>
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl border bg-muted/20 space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="size-4 text-emerald-500" />
-                        <span className="font-bold text-foreground">{avalancheResult.verdict}</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Nilai Avalanche Effect mendekati 50% membuktikan bahwa struktur Feistel Network 16-putaran 
-                        dengan S-boxes turunan bilangan Pi menghasilkan sifat difusi yang sangat kuat. Perubahan kecil 
-                        pada satu bit menyebabkan seluruh blok ciphertext berubah secara drastis dan acak.
+                    <div className="rounded-lg border border-border/70 bg-muted/30 p-3.5">
+                      <p className="text-sm font-medium text-foreground">{avalancheResult.verdict}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        Nilai mendekati 50% menunjukkan difusi yang kuat — perubahan satu bit menyebar
+                        ke seluruh blok ciphertext.
                       </p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Perbandingan Sampel Blok Ciphertext Hex:</Label>
-                      <div className="p-2.5 rounded-lg bg-slate-950 font-mono text-[11px] space-y-1 text-slate-300">
-                        <div><span className="text-muted-foreground">C1 (Asli) :</span> <span className="text-sky-400">{avalancheResult.sampleBlockHex1}</span></div>
-                        <div><span className="text-muted-foreground">C2 (Modif):</span> <span className="text-emerald-400">{avalancheResult.sampleBlockHex2}</span></div>
+                      <Label className="text-xs font-medium">Perbandingan blok ciphertext</Label>
+                      <div className="space-y-1 rounded-lg border border-border/70 bg-muted/30 p-3 font-mono text-[11px]">
+                        <div className="flex gap-2">
+                          <span className="w-16 shrink-0 text-muted-foreground">C1 asli</span>
+                          <span className="break-all text-foreground">{avalancheResult.sampleBlockHex1}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="w-16 shrink-0 text-muted-foreground">C2 ubah</span>
+                          <span className="break-all text-primary">{avalancheResult.sampleBlockHex2}</span>
+                        </div>
                       </div>
                     </div>
                   </>
@@ -263,17 +253,15 @@ export function SecurityAnalysisPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <Card className="lg:col-span-5">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Activity className="size-4 text-primary" /> Pengujian Entropi Informasi
-                </CardTitle>
+                <CardTitle className="text-sm font-semibold">Pengujian entropi</CardTitle>
                 <CardDescription className="text-xs">
-                  Mengukur tingkat ketidakpastian dan keacakan distribusi byte ciphertext Blowfish
+                  Ukur ketidakpastian dan keacakan distribusi byte ciphertext.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4 text-xs">
+              <CardContent className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="entropyInput" className="text-xs font-semibold">
-                    Payload Data KTP (Plaintext)
+                  <Label htmlFor="entropyInput" className="text-xs font-medium">
+                    Payload KTP (plaintext)
                   </Label>
                   <Textarea
                     id="entropyInput"
@@ -285,8 +273,8 @@ export function SecurityAnalysisPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="entropyKey" className="text-xs font-semibold">
-                    Kunci Enkripsi
+                  <Label htmlFor="entropyKey" className="text-xs font-medium">
+                    Kunci enkripsi
                   </Label>
                   <Input
                     id="entropyKey"
@@ -296,8 +284,8 @@ export function SecurityAnalysisPage() {
                   />
                 </div>
 
-                <Button onClick={handleRunEntropy} className="w-full gap-2 mt-2">
-                  <Play className="size-4" /> Hitung Shannon Entropy
+                <Button onClick={handleRunEntropy} className="w-full gap-2">
+                  <Play className="size-4" /> Hitung entropi Shannon
                 </Button>
               </CardContent>
             </Card>
@@ -305,54 +293,49 @@ export function SecurityAnalysisPage() {
             {/* Hasil Entropy */}
             <Card className="lg:col-span-7">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center justify-between">
-                  <span>Hasil Analisis Shannon Entropy H(X)</span>
-                  {entropyResult && (
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                      Maksimal: 8.0000 bit/byte
-                    </Badge>
-                  )}
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Entropi ideal bernilai mendekati 8 bit per byte untuk enkripsi simetris berkualitas tinggi
-                </CardDescription>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-sm font-semibold">Hasil analisis H(X)</CardTitle>
+                    <CardDescription className="mt-1 text-xs">
+                      Entropi ideal mendekati 8 bit per byte.
+                    </CardDescription>
+                  </div>
+                  {entropyResult && <Badge variant="outline">Maks. 8.0000 bit/byte</Badge>}
+                </div>
               </CardHeader>
-              <CardContent className="space-y-5 text-xs">
+              <CardContent className="space-y-5">
                 {entropyResult && (
                   <>
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="p-4 rounded-xl border bg-primary/5 border-primary/20">
-                        <span className="text-muted-foreground text-[11px]">Nilai Entropi H(X)</span>
-                        <p className="text-3xl font-extrabold text-primary mt-1">
-                          {entropyResult.entropy} <span className="text-sm font-normal">/ 8.0</span>
-                        </p>
+                    <dl className="grid grid-cols-2 divide-x divide-border rounded-lg border bg-card text-center">
+                      <div className="px-4 py-3">
+                        <dt className="text-[11px] text-muted-foreground">Nilai entropi H(X)</dt>
+                        <dd className="mt-1 text-2xl font-semibold tabular-nums text-primary">
+                          {entropyResult.entropy}
+                          <span className="ml-1 text-sm font-normal text-muted-foreground">/ 8.0</span>
+                        </dd>
                       </div>
-
-                      <div className="p-4 rounded-xl border bg-muted/30">
-                        <span className="text-muted-foreground text-[11px]">Tingkat Keacakan</span>
-                        <p className="text-3xl font-extrabold text-foreground mt-1">
+                      <div className="px-4 py-3">
+                        <dt className="text-[11px] text-muted-foreground">Tingkat keacakan</dt>
+                        <dd className="mt-1 text-2xl font-semibold tabular-nums text-foreground">
                           {entropyResult.idealPercentage}%
-                        </p>
+                        </dd>
                       </div>
-                    </div>
+                    </dl>
 
                     <div className="space-y-1.5">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span>Indeks Entropi Informasi:</span>
-                        <span className="text-emerald-600">{entropyResult.idealPercentage}%</span>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Indeks entropi informasi</span>
+                        <span className="font-medium tabular-nums text-foreground">
+                          {entropyResult.idealPercentage}%
+                        </span>
                       </div>
-                      <Progress value={entropyResult.idealPercentage} className="h-3" />
+                      <Progress value={entropyResult.idealPercentage} className="h-2" />
                     </div>
 
-                    <div className="p-3.5 rounded-xl border bg-muted/20 space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="size-4 text-emerald-500" />
-                        <span className="font-bold text-foreground">{entropyResult.verdict}</span>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Hasil perhitungan Shannon Entropy menunjukkan bahwa ciphertext yang dihasilkan oleh 
-                        implementasi Blowfish ini memiliki distribusi byte yang merata dan seragam (uniform distribution), 
-                        sehingga tahan terhadap serangan analisis frekuensi (frequency analysis attack).
+                    <div className="rounded-lg border border-border/70 bg-muted/30 p-3.5">
+                      <p className="text-sm font-medium text-foreground">{entropyResult.verdict}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        Distribusi byte yang merata membuat ciphertext tahan terhadap analisis frekuensi.
                       </p>
                     </div>
                   </>
@@ -365,54 +348,56 @@ export function SecurityAnalysisPage() {
         {/* ---------------- 3. BENCHMARK KECEPATAN ---------------- */}
         <TabsContent value="benchmark" className="space-y-6">
           <Card>
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Zap className="size-4 text-amber-500" /> Benchmark Kecepatan & Throughput Blowfish
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Uji komputasi waktu enkripsi dan dekripsi pada berbagai ukuran volume data KTP
-                </CardDescription>
-              </div>
-
-              <Button
-                onClick={handleRunBenchmark}
-                disabled={isBenchmarking}
-                className="text-xs gap-1.5"
-              >
-                <Play className={`size-3.5 ${isBenchmarking ? "animate-spin" : ""}`} />
-                {isBenchmarking ? "Menjalankan Uji..." : "Jalankan Benchmark"}
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4 text-xs">
-              {benchmarks.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground space-y-3">
-                  <Cpu className="size-10 mx-auto opacity-30 text-primary" />
-                  <p>Tekan tombol di atas untuk menjalankan uji benchmark kecepatan komputasi Blowfish.</p>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                <div>
+                  <CardTitle className="text-sm font-semibold">Benchmark kecepatan</CardTitle>
+                  <CardDescription className="mt-1 text-xs">
+                    Waktu enkripsi dan dekripsi pada beberapa ukuran data KTP.
+                  </CardDescription>
                 </div>
+
+                <Button
+                  onClick={handleRunBenchmark}
+                  disabled={isBenchmarking}
+                  size="sm"
+                  className="h-8 w-fit gap-1.5 text-xs font-medium"
+                >
+                  <Play className={`size-3.5 ${isBenchmarking ? "animate-spin" : ""}`} />
+                  {isBenchmarking ? "Menjalankan…" : "Jalankan benchmark"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {benchmarks.length === 0 ? (
+                <p className="py-10 text-center text-xs text-muted-foreground">
+                  Jalankan benchmark untuk mengukur kecepatan komputasi Blowfish.
+                </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {benchmarks.map((b, idx) => (
-                    <div key={idx} className="p-4 rounded-xl border bg-muted/20 space-y-3">
-                      <div className="font-semibold text-foreground text-xs">{b.payloadLabel}</div>
-                      <div className="space-y-1 text-[11px]">
+                    <div key={idx} className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4">
+                      <div className="text-xs font-medium text-foreground">{b.payloadLabel}</div>
+                      <dl className="space-y-1 text-[11px]">
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Ukuran:</span>
-                          <span className="font-mono">{b.payloadSizeBytes} bytes</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Enkripsi:</span>
-                          <span className="font-mono font-bold text-sky-600">{b.encryptionTimeMs} ms</span>
+                          <dt className="text-muted-foreground">Ukuran</dt>
+                          <dd className="font-mono tabular-nums text-foreground">{b.payloadSizeBytes} bytes</dd>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-muted-foreground">Dekripsi:</span>
-                          <span className="font-mono font-bold text-indigo-600">{b.decryptionTimeMs} ms</span>
+                          <dt className="text-muted-foreground">Enkripsi</dt>
+                          <dd className="font-mono tabular-nums text-foreground">{b.encryptionTimeMs} ms</dd>
                         </div>
-                        <div className="flex justify-between border-t pt-1 font-semibold">
-                          <span className="text-foreground">Throughput:</span>
-                          <span className="font-mono text-emerald-600">{b.throughputKbPerSec} KB/s</span>
+                        <div className="flex justify-between">
+                          <dt className="text-muted-foreground">Dekripsi</dt>
+                          <dd className="font-mono tabular-nums text-foreground">{b.decryptionTimeMs} ms</dd>
                         </div>
-                      </div>
+                        <div className="flex justify-between border-t border-border/70 pt-1">
+                          <dt className="text-muted-foreground">Throughput</dt>
+                          <dd className="font-mono font-medium tabular-nums text-foreground">
+                            {b.throughputKbPerSec} KB/s
+                          </dd>
+                        </div>
+                      </dl>
                     </div>
                   ))}
                 </div>

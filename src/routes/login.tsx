@@ -13,9 +13,9 @@ function LoginPageWrapper() {
     <AppLayout activeTab="login">
       <LoginPage
         onNavigate={(tab) => {
-          if (tab === "dashboard" || tab === "/") void navigate({ to: "/" });
-          else if (tab === "register" || tab === "/register") void navigate({ to: "/register" });
-          else if (tab === "forgot-password" || tab === "/forgot-password") void navigate({ to: "/forgot-password" });
+          if (tab === "dashboard") void navigate({ to: "/" });
+          else if (tab === "register") void navigate({ to: "/register" });
+          else if (tab === "forgot-password") void navigate({ to: "/forgot-password" });
         }}
       />
     </AppLayout>

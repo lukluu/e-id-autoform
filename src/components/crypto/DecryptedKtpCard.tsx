@@ -25,55 +25,51 @@ export function DecryptedKtpCard({ data, executionTimeMs, onClose }: DecryptedKt
   };
 
   return (
-    <Card className="border-2 border-primary/40 shadow-lg bg-gradient-to-br from-card to-muted/30 overflow-hidden">
-      <CardHeader className="bg-primary/10 border-b pb-3 flex flex-row items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-            <ShieldCheck className="size-5" />
-          </div>
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-muted/20 pb-3">
+        <div className="flex items-start gap-2.5">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
           <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <span>Kartu Identitas KTP (Didekripsi)</span>
-              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px]">
-                Dekripsi Blowfish Sukses ({executionTimeMs} ms)
-              </Badge>
+            <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+              <span>Kartu KTP terdekripsi</span>
+              <Badge variant="outline">{executionTimeMs} ms</Badge>
             </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Data pribadi berhasil dipulihkan dari ciphertext Blowfish CBC 64-bit
+            <p className="mt-1 text-xs text-muted-foreground">
+              Data dipulihkan dari ciphertext Blowfish CBC 64-bit.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={handleCopyJson} className="text-xs gap-1.5">
-            {copied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="outline" onClick={handleCopyJson} className="h-8 gap-1.5 text-xs font-medium">
+            {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
             {copied ? "Tersalin" : "Salin JSON"}
           </Button>
-          <Button size="sm" variant="outline" onClick={handlePrint} className="text-xs gap-1.5">
+          <Button size="sm" variant="outline" onClick={handlePrint} className="h-8 gap-1.5 text-xs font-medium">
             <Printer className="size-3.5" /> Cetak
           </Button>
           {onClose && (
-            <Button size="sm" variant="ghost" onClick={onClose} className="text-xs">
+            <Button size="sm" variant="ghost" onClick={onClose} className="h-8 text-xs text-muted-foreground">
               Tutup
             </Button>
           )}
         </div>
       </CardHeader>
 
-      <CardContent className="p-6">
-        {/* Desain Kartu KTP Digital Indonesia */}
-        <div className="rounded-xl border-2 border-sky-400/30 bg-gradient-to-b from-sky-50/50 to-blue-50/20 dark:from-slate-900 dark:to-slate-950 p-5 shadow-inner">
-          <div className="text-center border-b border-sky-200/50 dark:border-slate-800 pb-3 mb-4">
-            <h3 className="font-bold text-sm sm:text-base tracking-wider uppercase text-sky-950 dark:text-sky-200">
-              PROVINSI {data.provinsi || "INDONESIA"}
+      <CardContent className="p-5 sm:p-6">
+        {/* Representasi kartu KTP digital */}
+        <div className="rounded-lg border border-border/80 bg-muted/20 p-5">
+          <div className="mb-4 border-b border-border/70 pb-3 text-center">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+              Provinsi {data.provinsi || "Indonesia"}
             </h3>
-            <h4 className="font-semibold text-xs sm:text-sm tracking-wider uppercase text-sky-900/80 dark:text-sky-300">
-              {data.kabupatenKota || "KABUPATEN / KOTA"}
+            <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
+              {data.kabupatenKota || "Kabupaten / Kota"}
             </h4>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="md:col-span-12 font-mono text-base sm:text-xl font-extrabold tracking-widest text-primary border-b pb-2 flex items-center justify-between">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+            <div className="flex items-center justify-between border-b border-border/70 pb-2 font-mono text-base font-semibold tracking-widest text-foreground md:col-span-12 sm:text-lg">
               <span>NIK : {data.nik || "-"}</span>
             </div>
 

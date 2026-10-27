@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lock, Mail, Eye, EyeOff, LogIn, ArrowRight, ShieldCheck, UserPlus } from "lucide-react";
+import { Eye, EyeOff, LogIn, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,53 +37,51 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
   };
 
   return (
-    <div className="max-w-md mx-auto py-8">
-      <Card className="border-2 shadow-lg">
-        <CardHeader className="space-y-1 text-center">
-          <div className="size-12 rounded-2xl bg-primary/10 text-primary mx-auto flex items-center justify-center mb-2">
-            <Lock className="size-6" />
-          </div>
-          <CardTitle className="text-xl font-bold">Masuk ke Sistem</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            Masuk untuk mengakses data terenkripsi KTP
+    <div className="mx-auto flex w-full max-w-sm flex-col py-10">
+      <Card>
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-lg font-semibold tracking-tight">Masuk</CardTitle>
+          <CardDescription className="text-sm">
+            Akses dokumen KTP terenkripsi milik akun Anda.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
-              <Alert variant="destructive" className="py-2.5 text-xs">
+              <Alert variant="destructive" className="py-2">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="loginEmail" className="text-xs font-semibold">Email atau Username</Label>
-              <div className="relative flex items-center">
-                <Input
-                  id="loginEmail"
-                  type="text"
-                  placeholder="nama@email.com atau username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  required
-                  className="text-xs"
-                />
-              </div>
+              <Label htmlFor="loginEmail" className="text-sm font-medium">
+                Email atau username
+              </Label>
+              <Input
+                id="loginEmail"
+                type="text"
+                placeholder="nama@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                required
+              />
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="loginPassword" className="text-xs font-semibold">Kata Sandi</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="loginPassword" className="text-sm font-medium">
+                  Kata sandi
+                </Label>
                 <button
                   type="button"
                   onClick={() => onNavigate("forgot-password")}
-                  className="text-xs text-primary hover:underline"
+                  className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Lupa Kata Sandi?
+                  Lupa kata sandi?
                 </button>
               </div>
               <div className="relative flex items-center">
@@ -97,32 +95,33 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
                   autoCorrect="off"
                   spellCheck={false}
                   required
-                  className="text-xs pr-10"
+                  className="pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-2.5 text-muted-foreground hover:text-foreground"
+                  className="absolute right-2.5 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
                 >
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full text-xs font-semibold gap-2 mt-2">
-              <LogIn className="size-4" /> {loading ? "Memverifikasi..." : "Masuk"}
+            <Button type="submit" disabled={loading} className="mt-2 w-full gap-2">
+              <LogIn className="size-4" /> {loading ? "Memverifikasi…" : "Masuk"}
             </Button>
           </form>
         </CardContent>
 
-        <CardFooter className="flex justify-center border-t pt-4">
-          <p className="text-xs text-muted-foreground">
-            Belum memiliki akun?{" "}
+        <CardFooter className="justify-center border-t border-border/70 pt-4">
+          <p className="text-sm text-muted-foreground">
+            Belum punya akun?{" "}
             <button
               onClick={() => onNavigate("register")}
-              className="text-primary font-semibold hover:underline inline-flex items-center gap-0.5"
+              className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline"
             >
-              Daftar Sekarang <ArrowRight className="size-3" />
+              Daftar <ArrowRight className="size-3.5" />
             </button>
           </p>
         </CardFooter>

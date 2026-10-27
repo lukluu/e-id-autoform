@@ -73,11 +73,11 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
               onCropChange={editor.setCrop}
             />
 
-            <div className="space-y-4 rounded-xl border border-border bg-muted/25 p-4">
+            <div className="space-y-4 rounded-lg border border-border bg-muted/25 p-4">
               <div className="flex items-center justify-between">
                 <Label
                   htmlFor="lock-aspect"
-                  className="text-xs uppercase tracking-wide text-muted-foreground"
+                  className="text-sm font-medium text-muted-foreground"
                 >
                   Kunci rasio KTP
                 </Label>
@@ -89,7 +89,7 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
 
               <Separator />
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                <Label className="text-sm font-medium text-muted-foreground">
                   Zoom
                 </Label>
                 <div className="flex gap-2">
@@ -126,8 +126,8 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
               <Separator />
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-                    <Sun className="size-3.5" /> Brightness
+                  <Label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                    <Sun className="size-3.5" /> Kecerahan
                   </Label>
                   <span className="text-xs tabular-nums">{editor.adjustments.brightness}%</span>
                 </div>
@@ -139,8 +139,8 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
                   onValueChange={(v) => editor.setAdjustment("brightness", v[0] ?? 100)}
                 />
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-                    <Contrast className="size-3.5" /> Contrast
+                  <Label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                    <Contrast className="size-3.5" /> Kontras
                   </Label>
                   <span className="text-xs tabular-nums">{editor.adjustments.contrast}%</span>
                 </div>
@@ -154,7 +154,7 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
                 <div className="flex items-center justify-between">
                   <Label
                     htmlFor="grayscale"
-                    className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                    className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
                   >
                     <Droplets className="size-3.5" /> Grayscale
                   </Label>
@@ -167,9 +167,9 @@ export function ImageEditor({ src, busy, onCancel, onConfirm }: ImageEditorProps
                 <div className="flex items-center justify-between">
                   <Label
                     htmlFor="sharpen"
-                    className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground"
+                    className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
                   >
-                    <Wand2 className="size-3.5" /> Sharpen
+                    <Wand2 className="size-3.5" /> Pertajam
                   </Label>
                   <Switch
                     id="sharpen"

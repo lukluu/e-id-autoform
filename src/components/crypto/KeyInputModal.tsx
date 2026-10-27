@@ -24,8 +24,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { decryptUtf8WithBlowfish } from "@/crypto/blowfish";
 import { dbService, type EncryptedKtpRecord } from "@/services/dbService";
-import { emailService } from "@/services/emailService";
-import { authService } from "@/services/authService";
 import type { KtpData } from "@/types/ktp";
 
 interface KeyInputModalProps {
@@ -100,17 +98,17 @@ export function KeyInputModal({
           nama: decNama.plainText,
           tempatLahir: decTempatLahir.plainText,
           tanggalLahir: decTanggalLahir.plainText,
-          jenisKelamin: decJenisKelamin.plainText as any,
-          golonganDarah: decGolDarah.plainText as any,
+          jenisKelamin: decJenisKelamin.plainText as KtpData["jenisKelamin"],
+          golonganDarah: decGolDarah.plainText as KtpData["golonganDarah"],
           alamat: decAlamat.plainText,
           rt: decRt.plainText,
           rw: decRw.plainText,
           kelurahanDesa: decKelDesa.plainText,
           kecamatan: decKecamatan.plainText,
-          agama: decAgama.plainText as any,
-          statusPerkawinan: decStatusPerkawinan.plainText as any,
+          agama: decAgama.plainText as KtpData["agama"],
+          statusPerkawinan: decStatusPerkawinan.plainText as KtpData["statusPerkawinan"],
           pekerjaan: decPekerjaan.plainText,
-          kewarganegaraan: decKewarganegaraan.plainText as any,
+          kewarganegaraan: decKewarganegaraan.plainText as KtpData["kewarganegaraan"],
           berlakuHingga: decBerlakuHingga.plainText,
         };
 
@@ -133,43 +131,11 @@ export function KeyInputModal({
     setError(null);
 
     try {
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser?.email) {
-        setError("Sesi tidak ditemukan. Silakan login kembali.");
-        return;
-      }
-      const targetEmail = currentUser.email;
-
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-      const keyToSave = record.keyHint;
-      if (!keyToSave) {
-        setError("Dokumen ini tidak memiliki data pemulihan kunci enkripsi.");
-        return;
-      }
-
-      await dbService.saveRecoveryCode({
-        id: "rec_" + Date.now(),
-        type: "KEY_RECOVERY",
-        email: targetEmail,
-        code,
-        payload: { recordId: record.id, keyHint: keyToSave },
-        createdAt: new Date().toISOString(),
-        expiresAt,
-        used: false,
-      });
-
-      await emailService.sendKeyRecoveryEmail(targetEmail, {
-        maskedNik: record.id,
-        nama: record.displayNama || "Subjek KTP",
-        keyHint: keyToSave,
-        recoveryCode: code,
-      });
-
+      const result = await dbService.requestKeyRecovery(record.id);
       setIsForgotMode(true);
       setRecoverySuccessMessage(
-        `Kode pemulihan telah dikirim ke email (${targetEmail}). Silakan cek kotak masuk email Anda.`,
+        result.message ||
+          `Kode pemulihan telah dikirim ke email akun Anda. Silakan cek kotak masuk email.`,
       );
     } catch (err) {
       setError("Gagal mengirim kode pemulihan: " + (err as Error).message);
@@ -188,29 +154,7 @@ export function KeyInputModal({
     setError(null);
 
     try {
-      await new Promise((r) => setTimeout(r, 400));
-      const currentUser = authService.getCurrentUser();
-      if (!currentUser?.email) {
-        setError("Sesi tidak ditemukan. Silakan login kembali.");
-        return;
-      }
-      const targetEmail = currentUser.email;
-
-      const verified = await dbService.verifyRecoveryCode(targetEmail, recoveryCode.trim(), "KEY_RECOVERY");
-      if (!verified) {
-        setError("Kode pemulihan salah atau sudah kadaluarsa.");
-        return;
-      }
-
-      // Ambil kunci rahasia yang tersimpan di record atau payload recovery
-      const recoveredKey =
-        record.keyHint ||
-        (verified.payload as { keyHint?: string } | undefined)?.keyHint;
-
-      if (!recoveredKey) {
-        setError("Kunci rahasia tidak ditemukan untuk dokumen ini.");
-        return;
-      }
+      const recoveredKey = await dbService.recoverKey(record.id, recoveryCode.trim());
 
       // 1. Masukkan langsung kunci ke input form kunci
       setKey(recoveredKey);
@@ -218,11 +162,14 @@ export function KeyInputModal({
 
       // 2. Langsung pindah kembali ke tampilan form input kunci
       setIsForgotMode(false);
+      setRecoveryCode("");
 
       // 3. Tampilkan pesan berhasil yang jelas
       setRecoverySuccessMessage(
-        `Verifikasi berhasil! Kunci rahasia telah dipulihkan dan otomatis diisi ke form. Silakan klik "Buka & Dekripsi Data".`
+        `Verifikasi berhasil! Kunci rahasia telah dipulihkan dan otomatis diisi ke form. Silakan klik "Buka & Dekripsi Data".`,
       );
+    } catch (err) {
+      setError((err as Error).message || "Kode pemulihan salah atau sudah kadaluarsa.");
     } finally {
       setIsVerifyingCode(false);
     }
@@ -232,32 +179,32 @@ export function KeyInputModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Lock className="size-5" />
+          <div className="mb-1 flex items-center gap-2.5">
+            <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted/60 text-muted-foreground">
+              <Lock className="size-4" />
             </div>
             <div>
-              <DialogTitle className="text-base">Dekripsi Dokumen KTP</DialogTitle>
-              <DialogDescription className="text-xs">
-                Dokumen: <strong>{record.displayNama || "Subjek KTP"}</strong>
+              <DialogTitle className="text-base">Dekripsi dokumen KTP</DialogTitle>
+              <DialogDescription className="text-sm">
+                Dokumen: <strong className="font-medium text-foreground">{record.displayNama || "Subjek KTP"}</strong>
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         {error && (
-          <Alert variant="destructive" className="py-2.5">
+          <Alert variant="destructive" className="py-2">
             <AlertTriangle className="size-4" />
-            <AlertTitle className="text-xs font-semibold">Gagal</AlertTitle>
-            <AlertDescription className="text-xs">{error}</AlertDescription>
+            <AlertTitle>Gagal</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         {recoverySuccessMessage && (
-          <Alert className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 py-2.5">
-            <CheckCircle2 className="size-4 text-emerald-600" />
-            <AlertTitle className="text-xs font-semibold">Informasi Pemulihan</AlertTitle>
-            <AlertDescription className="text-xs">{recoverySuccessMessage}</AlertDescription>
+          <Alert className="border-success/30 bg-success/5 py-2">
+            <CheckCircle2 className="size-4 text-success" />
+            <AlertTitle>Informasi pemulihan</AlertTitle>
+            <AlertDescription>{recoverySuccessMessage}</AlertDescription>
           </Alert>
         )}
 
@@ -265,7 +212,7 @@ export function KeyInputModal({
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label htmlFor="decryptKey" className="text-xs font-medium">
+                <Label htmlFor="decryptKey" className="text-sm font-medium">
                   Kunci Enkripsi (Secret Key)
                 </Label>
                 <button
@@ -328,7 +275,7 @@ export function KeyInputModal({
           /* Mode Pemulihan Kunci */
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="recoveryOtp" className="text-xs font-medium">
+              <Label htmlFor="recoveryOtp" className="text-sm font-medium">
                 Masukkan Kode Verifikasi 6-Digit dari Email
               </Label>
               <div className="flex gap-2">
@@ -339,7 +286,7 @@ export function KeyInputModal({
                   value={recoveryCode}
                   disabled={isVerifyingCode}
                   onChange={(e) => setRecoveryCode(e.target.value.replace(/\D/g, ""))}
-                  className="font-mono text-center tracking-widest text-lg"
+                  className="text-center font-mono tracking-[0.3em]"
                 />
                 <Button type="button" onClick={handleVerifyRecoveryCode} disabled={isVerifyingCode} className="gap-1.5">
                   {isVerifyingCode ? <Loader2 className="size-3.5 animate-spin" /> : null}
@@ -351,7 +298,7 @@ export function KeyInputModal({
               </p>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-3">
               <Button
                 variant="ghost"
                 size="sm"

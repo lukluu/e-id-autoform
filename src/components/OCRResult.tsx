@@ -109,7 +109,6 @@ export function OCRResult({
         <KtpForm
           data={data}
           onSubmitData={onSubmitData}
-          onReset={() => onSubmitData(data, secretKey)}
           onClear={onClear}
           isEncrypting={isEncrypting}
           secretKey={secretKey}

@@ -46,6 +46,8 @@ import {
 import { dbService, type EncryptedKtpRecord } from "@/services/dbService";
 import { authService } from "@/services/authService";
 import { KeyInputModal } from "@/components/crypto/KeyInputModal";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { toast } from "sonner";
 import type { KtpData } from "@/types/ktp";
 import type { AppPageTab } from "@/components/layout/AppLayout";
 
@@ -85,21 +87,26 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
     try {
       const currentUser = authService.getCurrentUser();
       const all = await dbService.getAllEncryptedKtp();
-      // Filter hanya data yang dienkripsi oleh user yang sedang login
-      const myRecords = all.filter((r) => !r.userId || !currentUser || r.userId === currentUser.id);
+      // Hanya tampilkan data milik user yang sedang login (server juga sudah memfilter).
+      const myRecords = currentUser ? all.filter((r) => r.userId === currentUser.id) : [];
       setRecords(myRecords);
 
       // Cek apakah ada record yang baru disimpan dan perlu langsung dibuka
       const pendingRecordId = typeof window !== "undefined" ? sessionStorage.getItem("active_vault_record_id") : null;
       if (pendingRecordId) {
         sessionStorage.removeItem("active_vault_record_id");
-        const target = myRecords.find((r) => r.id === pendingRecordId) || all.find((r) => r.id === pendingRecordId);
+        const target = myRecords.find((r) => r.id === pendingRecordId);
         if (target) {
           setSelectedRecord(target);
           setDecryptedData(null);
           setViewMode("detail");
         }
       }
+    } catch (err) {
+      setRecords([]);
+      toast.error("Gagal memuat data terenkripsi", {
+        description: (err as Error).message,
+      });
     } finally {
       setLoading(false);
     }
@@ -164,14 +171,19 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
 
   const handleDeleteRecord = async () => {
     if (!recordToDelete) return;
-    await dbService.deleteEncryptedKtp(recordToDelete.id);
-    if (selectedRecord?.id === recordToDelete.id) {
-      setViewMode("list");
-      setSelectedRecord(null);
-      setDecryptedData(null);
+    try {
+      await dbService.deleteEncryptedKtp(recordToDelete.id);
+      if (selectedRecord?.id === recordToDelete.id) {
+        setViewMode("list");
+        setSelectedRecord(null);
+        setDecryptedData(null);
+      }
+      setRecordToDelete(null);
+      await loadRecords();
+    } catch (err) {
+      setRecordToDelete(null);
+      toast.error("Gagal menghapus dokumen", { description: (err as Error).message });
     }
-    setRecordToDelete(null);
-    await loadRecords();
   };
 
   const handleCopyValue = async (key: string, val: string | undefined) => {
@@ -226,19 +238,19 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
     });
 
     const renderTableBlock = (fields: typeof leftFields) => (
-      <div className="border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-xs">
-        <table className="w-full text-left border-collapse">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <table className="w-full border-collapse text-left">
           <tbody>
             {fields.map((field) => (
-              <tr key={field.key} className="border-b last:border-0 border-slate-200 dark:border-slate-800">
-                <td className="w-28 sm:w-36 bg-slate-100 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-bold text-[11px] sm:text-xs px-2.5 sm:px-3.5 py-2 sm:py-2.5 border-r border-slate-200 dark:border-slate-800 whitespace-nowrap select-none">
+              <tr key={field.key} className="border-b border-border/70 last:border-0">
+                <td className="w-28 whitespace-nowrap border-r border-border/70 bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground select-none sm:w-36 sm:px-3.5 sm:py-2.5">
                   {field.label}
                 </td>
                 <td
-                  className={`px-2.5 sm:px-3.5 py-2 sm:py-2.5 ${
+                  className={`px-3 py-2 sm:px-3.5 sm:py-2.5 ${
                     !isUnlocked
-                      ? "font-mono text-[11px] sm:text-xs text-slate-800 dark:text-slate-200 break-all select-all font-semibold"
-                      : "font-semibold text-[11px] sm:text-xs text-slate-900 dark:text-slate-100"
+                      ? "break-all font-mono text-[11px] font-medium text-foreground select-all sm:text-xs"
+                      : "text-sm text-foreground"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -247,11 +259,11 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
                       <button
                         type="button"
                         onClick={() => handleCopyValue(field.key, field.val)}
-                        className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 shrink-0 p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+                        className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         title="Salin data"
                       >
                         {copiedKey === field.key ? (
-                          <Check className="size-3.5 text-emerald-600 font-bold" />
+                          <Check className="size-3.5 text-success" />
                         ) : (
                           <Copy className="size-3.5" />
                         )}
@@ -267,20 +279,20 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
     );
 
     return (
-      <div className="space-y-4 max-w-6xl mx-auto pb-10">
+      <div className="mx-auto max-w-6xl space-y-5 pb-10">
         {/* Navigasi & Action Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => {
               setViewMode("list");
               setDecryptedData(null);
             }}
-            className="text-xs gap-1.5 h-8 font-medium w-fit"
+            className="-ml-2 h-8 w-fit gap-1.5 text-xs text-muted-foreground"
           >
             <ArrowLeft className="size-3.5" />
-            <span>Kembali ke Data Terenkripsi</span>
+            <span>Kembali ke data terenkripsi</span>
           </Button>
 
           <div className="flex items-center gap-2">
@@ -289,28 +301,28 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setDecryptedData(null)}
-                className="text-xs gap-1.5 h-8 font-medium"
+                className="h-8 gap-1.5 text-xs font-medium"
               >
                 <Lock className="size-3.5" />
-                <span>Kunci Kembali</span>
+                <span>Kunci kembali</span>
               </Button>
             ) : (
               <Button
                 size="sm"
                 onClick={() => setKeyModalOpen(true)}
-                className="text-xs gap-1.5 h-8 font-medium bg-primary text-primary-foreground"
+                className="h-8 gap-1.5 text-xs font-medium"
               >
                 <Unlock className="size-3.5" />
-                <span>Buka Dekripsi</span>
+                <span>Buka dekripsi</span>
               </Button>
             )}
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setRecordToDelete(selectedRecord)}
-              className="text-xs text-destructive hover:text-destructive h-8 px-2.5"
-              title="Hapus Dokumen"
+              className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive"
+              title="Hapus dokumen"
             >
               <Trash2 className="size-3.5" />
             </Button>
@@ -318,33 +330,26 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
         </div>
 
         {/* Header Informasi Dokumen */}
-        <div className="p-3.5 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-base font-bold uppercase tracking-tight text-slate-900 dark:text-slate-100">
+        <div className="flex flex-col gap-2 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="truncate text-[22px] font-semibold tracking-tight text-foreground">
                 {selectedRecord.displayNama || selectedRecord.nama || "Dokumen KTP"}
               </h1>
-              <Badge
-                variant={isUnlocked ? "default" : "secondary"}
-                className={`text-[11px] font-bold ${
-                  isUnlocked
-                    ? "bg-emerald-600 text-white"
-                    : "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200"
-                }`}
-              >
-                {isUnlocked ? "DATA TERDEKRIPSI" : "CIPHERTEXT TERENKRIPSI"}
+              <Badge variant={isUnlocked ? "default" : "outline"}>
+                {isUnlocked ? "Terdekripsi" : "Terenkripsi"}
               </Badge>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Waktu Tersimpan: {formattedDate} WIB
+            <p className="mt-1 text-sm text-muted-foreground">
+              Disimpan {formattedDate} WIB
             </p>
           </div>
 
           {decryptedData && (
-            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 px-3 py-1 rounded-md">
-              <ShieldCheck className="size-3.5 shrink-0" />
-              <span>Dekripsi Berhasil</span>
-            </div>
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <ShieldCheck className="size-3.5 shrink-0 text-success" />
+              <span>Dekripsi berhasil</span>
+            </span>
           )}
         </div>
 
@@ -391,55 +396,51 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
   // VIEW 2: DAFTAR DOKUMEN KTP (TABEL VAULT)
   // ==========================================
   return (
-    <div className="space-y-5 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Data Terenkripsi</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Daftar data KTP terenkripsi dalam database.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadRecords}
-            className="text-xs gap-1.5 h-8 font-medium"
-            disabled={loading}
-          >
-            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span>Muat Ulang</span>
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => onNavigate("ocr")}
-            className="text-xs gap-1.5 h-8 font-medium"
-          >
-            <Plus className="size-3.5" />
-            <span>Scan KTP Baru</span>
-          </Button>
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <PageHeader
+        title="Data terenkripsi"
+        description="Dokumen KTP yang tersimpan dalam bentuk ciphertext. Buka dengan kunci rahasia Anda."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadRecords}
+              className="h-8 gap-1.5 text-xs font-medium"
+              disabled={loading}
+            >
+              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span>Muat ulang</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => onNavigate("ocr")}
+              className="h-8 gap-1.5 text-xs font-medium"
+            >
+              <Plus className="size-3.5" />
+              <span>Scan KTP baru</span>
+            </Button>
+          </>
+        }
+      />
 
       {/* Main Table Card */}
-      <Card className="border border-slate-300 dark:border-slate-700 rounded-lg shadow-xs overflow-hidden bg-white dark:bg-slate-900">
+      <Card className="overflow-hidden">
         {/* Toolbar: Search & Filter */}
-        <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-col items-stretch justify-between gap-3 border-b border-border/70 bg-muted/30 p-3 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
-            <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Cari nama KTP..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 text-xs h-8.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+              className="h-8 pl-8 text-sm"
             />
           </div>
 
           <div className="flex items-center gap-2">
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[160px] text-xs h-8.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700">
+              <SelectTrigger className="h-8 w-[160px] text-xs">
                 <SelectValue placeholder="Urutkan" />
               </SelectTrigger>
               <SelectContent className="text-xs">
@@ -454,7 +455,7 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
               value={String(pageSize)}
               onValueChange={(val) => setPageSize(Number(val))}
             >
-              <SelectTrigger className="w-[100px] text-xs h-8.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700">
+              <SelectTrigger className="h-8 w-[100px] text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="text-xs">
@@ -471,23 +472,23 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                  <TableHead className="w-14 text-xs font-bold text-slate-700 dark:text-slate-300 text-center">No</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Nama</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300">Tanggal</TableHead>
-                  <TableHead className="text-xs font-bold text-slate-700 dark:text-slate-300 text-right pr-4">Aksi</TableHead>
+                <TableRow className="border-b border-border/70 bg-transparent hover:bg-transparent">
+                  <TableHead className="w-14 text-center text-xs font-medium text-muted-foreground">No</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Nama</TableHead>
+                  <TableHead className="text-xs font-medium text-muted-foreground">Tanggal</TableHead>
+                  <TableHead className="pr-4 text-right text-xs font-medium text-muted-foreground">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-10 text-xs text-slate-500">
+                    <TableCell colSpan={4} className="text-center py-10 text-xs text-muted-foreground">
                       Memuat data...
                     </TableCell>
                   </TableRow>
                 ) : paginatedRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-10 text-xs text-slate-500">
+                    <TableCell colSpan={4} className="text-center py-10 text-xs text-muted-foreground">
                       {searchQuery
                         ? "Tidak ada data yang cocok dengan pencarian."
                         : "Belum ada dokumen KTP terenkripsi."}
@@ -505,39 +506,40 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
                     });
 
                     return (
-                      <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                        <TableCell className="text-center text-xs text-slate-500 font-mono">
+                      <TableRow key={item.id} className="border-b border-border/70 hover:bg-muted/40">
+                        <TableCell className="text-center text-xs tabular-nums text-muted-foreground">
                           {rowNumber}
                         </TableCell>
-                        <TableCell className="text-xs font-semibold text-slate-900 dark:text-slate-100 uppercase">
+                        <TableCell className="text-sm font-medium text-foreground">
                           {item.displayNama || item.nama}
                         </TableCell>
-                        <TableCell className="text-xs text-slate-500 whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {dateFormatted}
                         </TableCell>
-                        <TableCell className="text-right py-2 pr-4 space-x-1.5 whitespace-nowrap">
+                        <TableCell className="space-x-1.5 whitespace-nowrap py-2 pr-4 text-right">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleOpenDetail(item)}
-                            className="text-xs h-7 px-2.5 font-medium"
+                            className="h-7 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
                           >
-                            <Eye className="size-3 mr-1 text-slate-500" />
+                            <Eye className="mr-1 size-3.5" />
                             Detail
                           </Button>
                           <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleOpenDecryptModalFromList(item)}
-                            className="text-xs h-7 px-2.5 font-medium"
+                            className="h-7 px-2.5 text-xs font-medium"
                           >
-                            <Unlock className="size-3 mr-1" />
-                            Buka Data
+                            <Unlock className="mr-1 size-3.5" />
+                            Buka
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => setRecordToDelete(item)}
-                            className="size-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                             title="Hapus"
                           >
                             <Trash2 className="size-3.5" />
@@ -553,18 +555,18 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
 
           {/* Pagination Footer */}
           {!loading && filteredRecords.length > 0 && (
-            <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+            <div className="p-3 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
               <div>
                 Menampilkan{" "}
-                <span className="font-semibold text-slate-900 dark:text-slate-100">
+                <span className="font-semibold text-foreground">
                   {(currentPage - 1) * pageSize + 1}
                 </span>{" "}
                 -{" "}
-                <span className="font-semibold text-slate-900 dark:text-slate-100">
+                <span className="font-semibold text-foreground">
                   {Math.min(currentPage * pageSize, filteredRecords.length)}
                 </span>{" "}
                 dari{" "}
-                <span className="font-semibold text-slate-900 dark:text-slate-100">
+                <span className="font-semibold text-foreground">
                   {filteredRecords.length}
                 </span>{" "}
                 data
@@ -581,7 +583,7 @@ export function DecryptPage({ onNavigate }: DecryptPageProps) {
                   <ChevronLeft className="size-3.5 mr-0.5" />
                   Sebelumnya
                 </Button>
-                <div className="px-2 font-bold text-slate-800 dark:text-slate-200">
+                <div className="px-2 text-xs font-medium tabular-nums text-muted-foreground">
                   {currentPage} / {totalPages}
                 </div>
                 <Button

@@ -3,7 +3,7 @@ import { Home } from "@/pages/Home";
 
 const title = "KTP OCR Scanner — Pindai & Isi Otomatis Data KTP Terenkripsi";
 const description =
-  "Pindai KTP Indonesia lewat OCR, enkripsi Blowfish 64-bit, dan integrasi database Neon Serverless PostgreSQL.";
+  "Pindai KTP Indonesia lewat OCR, enkripsi Blowfish 64-bit, dan penyimpanan database aman.";
 
 export const Route = createFileRoute("/")({
   head: () => ({

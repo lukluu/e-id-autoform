@@ -17,16 +17,16 @@ export function RotateControl({ rotation, onChange }: RotateControlProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Rotasi Kemiringan
+        <Label className="text-sm font-medium text-muted-foreground">
+          Rotasi kemiringan
         </Label>
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-semibold tabular-nums text-primary">{rotation}°</span>
+          <span className="text-xs font-medium tabular-nums text-primary">{rotation}°</span>
           {rotation !== 0 && (
             <button
               type="button"
               onClick={() => onChange(0)}
-              className="text-[10px] text-muted-foreground underline hover:text-foreground"
+              className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
             >
               Reset 0°
             </button>

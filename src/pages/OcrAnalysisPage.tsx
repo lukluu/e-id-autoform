@@ -1,25 +1,22 @@
 import { useState } from "react";
 import {
-  Sparkles,
   Layers,
   Cpu,
   Scan,
   CheckCircle2,
   Database,
   Shield,
-  FileText,
   Sliders,
   Play,
   Info,
   Workflow,
-  Compass,
   Filter,
-  Code2,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { parseKtpText } from "@/services/ktpParser";
 
 interface SampleOcrCase {
@@ -160,9 +157,10 @@ const ALL_LOOKALIKE_RULES: LookalikeRule[] = [
 ];
 
 export function OcrAnalysisPage() {
-  const [selectedCase, setSelectedCase] = useState<SampleOcrCase>(SAMPLE_OCR_CASES[0]);
-  const [customText, setCustomText] = useState(SAMPLE_OCR_CASES[0].rawText);
-  const [parsedResult, setParsedResult] = useState(() => parseKtpText(SAMPLE_OCR_CASES[0].rawText));
+  const firstCase = SAMPLE_OCR_CASES[0]!;
+  const [selectedCase, setSelectedCase] = useState<SampleOcrCase>(firstCase);
+  const [customText, setCustomText] = useState(firstCase.rawText);
+  const [parsedResult, setParsedResult] = useState(() => parseKtpText(firstCase.rawText));
   const [activeCategory, setActiveCategory] = useState<LookalikeCategory>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -193,7 +191,6 @@ export function OcrAnalysisPage() {
       title: "Image Acquisition & Pre-processing",
       subtitle: "Persiapan & Binarisasi Citra",
       icon: Scan,
-      color: "from-blue-500/20 to-cyan-500/20 text-cyan-400 border-cyan-500/30",
       details: [
         "Scaling resolusi cerdas ke 1200px untuk menghemat RAM dan mempercepat komputasi 10x lipat.",
         "Grayscale binarization & peningkatan kontras adaptif untuk menghilangkan noise motif batik/latar belakang KTP.",
@@ -205,7 +202,6 @@ export function OcrAnalysisPage() {
       title: "Tesseract LSTM Neural Network Engine",
       subtitle: "Ekstraksi Karakter Optik",
       icon: Cpu,
-      color: "from-indigo-500/20 to-blue-500/20 text-indigo-400 border-indigo-500/30",
       details: [
         "Page Segmentation Mode (PSM) mendeteksi baris teks terpisah pada kartu identitas.",
         "Model LSTM ind+eng mengenali bentuk glyph karakter, termasuk font khusus monospaced OCR-B pada nomor NIK.",
@@ -217,7 +213,6 @@ export function OcrAnalysisPage() {
       title: "Fuzzy Tokenizer & Levenshtein Matching",
       subtitle: "Pemisahan Label & Nilai",
       icon: Workflow,
-      color: "from-purple-500/20 to-pink-500/20 text-purple-400 border-purple-500/30",
       details: [
         "Menggunakan algoritma Jarak Levenshtein untuk mengenali label meskipun ada typo (misal: 'N1K' ➔ NIK, 'JORUS' ➔ JENIS KELAMIN, 'ATAW' ➔ RT/RW).",
         "Mendeteksi field multi-kolom sebaris (misal: 'PEREMPUAN Gol. Darah : O' dipecah menjadi dua field).",
@@ -229,7 +224,6 @@ export function OcrAnalysisPage() {
       title: "Domain-Specific Character Correction",
       subtitle: "Koreksi Karakter Mirip (Lookalike Mapping)",
       icon: Layers,
-      color: "from-amber-500/20 to-orange-500/20 text-amber-400 border-amber-500/30",
       details: [
         "Koreksi NIK: Huruf mirip angka dikonversi (I/l/| ➔ 1, O/D/Q ➔ 0, Z ➔ 2, b/G ➔ 6, ?/T ➔ 7).",
         "Koreksi Golongan Darah: Jika terbaca angka 0/Q/D dipetakan ke 'O', jika strip dipetakan ke '-'.",
@@ -241,7 +235,6 @@ export function OcrAnalysisPage() {
       title: "Wilayah Indonesia Database Enrichment",
       subtitle: "Validasi & Normalisasi Wilayah Disdukcapil",
       icon: Database,
-      color: "from-emerald-500/20 to-teal-500/20 text-emerald-400 border-emerald-500/30",
       details: [
         "Pencocokan silang dengan database lengkap 38 Provinsi, 514 Kabupaten/Kota, 7.200+ Kecamatan, dan 83.000+ Kelurahan.",
         "Koreksi otomatis typo nama kabupaten (misal: 'KOAKA' ➔ KOLAKA, 'MINA' ➔ MUNA).",
@@ -251,57 +244,41 @@ export function OcrAnalysisPage() {
     {
       step: "06",
       title: "Blowfish-128 Encryption & Storage",
-      subtitle: "Pengamanan Kriptografi & Penyimpanan Cloud",
+      subtitle: "Pengamanan Kriptografi & Penyimpanan Database",
       icon: Shield,
-      color: "from-rose-500/20 to-red-500/20 text-rose-400 border-rose-500/30",
       details: [
         "Struktur data JSON divalidasi dengan skema Zod sebelum masuk tahap pengamanan.",
         "Setiap field sensitif dienkripsi secara independen dengan algoritma Blowfish 16-round Feistel Network.",
-        "Disimpan ke database cloud Neon Serverless PostgreSQL dalam bentuk ciphertext hex aman.",
+        "Disimpan ke database dalam bentuk ciphertext hex aman.",
       ],
     },
   ];
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-6">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold mb-2">
-            <Sparkles className="size-3.5" /> Modul Analisis Arsitektur OCR
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Analisis Pipeline OCR e-KTP
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-            Pelajari alur komprehensif bagaimana sistem mentransformasikan citra fisik KTP dari kamera ponsel hingga menjadi data digital terstruktur dengan akurasi tinggi.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="text-xs bg-card/60">
-            Tesseract v5.0 (LSTM)
-          </Badge>
-          <Badge variant="outline" className="text-xs bg-card/60">
-            Fuzzy Levenshtein
-          </Badge>
-          <Badge variant="outline" className="text-xs bg-card/60">
-            Disdukcapil 38 Provinsi
-          </Badge>
-        </div>
-      </div>
+    <div className="space-y-7 pb-6">
+      <PageHeader
+        title="Analisis pipeline OCR"
+        description="Alur yang dilalui citra KTP — dari kamera ponsel hingga menjadi data terstruktur yang siap dienkripsi."
+        actions={
+          <>
+            <Badge variant="outline">Tesseract v5 · LSTM</Badge>
+            <Badge variant="outline">Fuzzy Levenshtein</Badge>
+            <Badge variant="outline">38 provinsi</Badge>
+          </>
+        }
+      />
 
       {/* Main Tabs */}
       <Tabs defaultValue="pipeline" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-md bg-muted/60 p-1">
-          <TabsTrigger value="pipeline" className="text-xs font-semibold gap-1.5">
-            <Workflow className="size-3.5" /> 6 Tahap Pipeline
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsTrigger value="pipeline" className="gap-1.5 text-xs">
+            <Workflow className="size-3.5" /> Pipeline
           </TabsTrigger>
-          <TabsTrigger value="simulator" className="text-xs font-semibold gap-1.5">
-            <Play className="size-3.5" /> Live Inspector
+          <TabsTrigger value="simulator" className="gap-1.5 text-xs">
+            <Play className="size-3.5" /> Uji parser
           </TabsTrigger>
-          <TabsTrigger value="rules" className="text-xs font-semibold gap-1.5">
-            <Layers className="size-3.5" /> Kamus Lookalike ({ALL_LOOKALIKE_RULES.length})
+          <TabsTrigger value="rules" className="gap-1.5 text-xs">
+            <Layers className="size-3.5" /> Kamus ({ALL_LOOKALIKE_RULES.length})
           </TabsTrigger>
         </TabsList>
 
@@ -311,31 +288,29 @@ export function OcrAnalysisPage() {
             {stages.map((stage) => {
               const Icon = stage.icon;
               return (
-                <Card key={stage.step} className="border-border/60 bg-card/50 backdrop-blur-sm relative overflow-hidden flex flex-col justify-between">
-                  <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${stage.color} rounded-bl-full opacity-30 pointer-events-none`} />
-                  
+                <Card key={stage.step} className="flex flex-col">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="size-9 rounded-lg bg-background/80 border border-border flex items-center justify-center shadow-xs">
-                          <Icon className="size-5 text-primary" />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-muted/60 text-muted-foreground">
+                          <Icon className="size-4" />
                         </div>
-                        <div>
-                          <CardTitle className="text-sm font-semibold">{stage.title}</CardTitle>
-                          <CardDescription className="text-xs text-muted-foreground">{stage.subtitle}</CardDescription>
+                        <div className="min-w-0">
+                          <CardTitle className="text-sm font-semibold leading-snug">{stage.title}</CardTitle>
+                          <CardDescription className="mt-0.5 text-xs">{stage.subtitle}</CardDescription>
                         </div>
                       </div>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                         {stage.step}
                       </span>
                     </div>
                   </CardHeader>
 
-                  <CardContent className="space-y-2 text-xs">
+                  <CardContent className="text-[13px] leading-relaxed">
                     <ul className="space-y-2 text-muted-foreground">
                       {stage.details.map((detail, idx) => (
                         <li key={idx} className="flex items-start gap-2">
-                          <CheckCircle2 className="size-3.5 text-primary mt-0.5 shrink-0" />
+                          <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-primary/70" />
                           <span>{detail}</span>
                         </li>
                       ))}
@@ -347,45 +322,43 @@ export function OcrAnalysisPage() {
           </div>
 
           {/* Diagram Alur Data */}
-          <Card className="border-border/60 bg-card/40">
+          <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Compass className="size-4 text-primary" /> Diagram Visual Perjalanan Data
-              </CardTitle>
+              <CardTitle className="text-sm font-semibold">Perjalanan data</CardTitle>
               <CardDescription className="text-xs">
-                Visualisasi aliran data dari foto masukan hingga tersimpan aman di database
+                Dari foto mentah hingga ciphertext yang tersimpan di database.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col md:flex-row items-stretch justify-between gap-3 text-xs">
-                <div className="flex-1 p-3 rounded-lg border border-border/80 bg-background/50 flex flex-col items-center text-center gap-1.5">
-                  <Scan className="size-5 text-cyan-400" />
-                  <span className="font-semibold text-foreground">1. Foto Mentah KTP</span>
-                  <span className="text-[11px] text-muted-foreground">Kamera Ponsel / Upload File</span>
+              <div className="flex flex-col items-stretch justify-between gap-2 md:flex-row">
+                <div className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-3 text-center">
+                  <Scan className="size-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">Foto KTP</span>
+                  <span className="text-[11px] text-muted-foreground">Kamera atau unggahan</span>
                 </div>
-                <div className="hidden md:flex items-center justify-center text-muted-foreground">➔</div>
-                <div className="flex-1 p-3 rounded-lg border border-border/80 bg-background/50 flex flex-col items-center text-center gap-1.5">
-                  <Sliders className="size-5 text-indigo-400" />
-                  <span className="font-semibold text-foreground">2. Pre-processing</span>
-                  <span className="text-[11px] text-muted-foreground">1200px Grayscale Binarization</span>
+                <div className="hidden items-center text-muted-foreground md:flex">→</div>
+                <div className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-3 text-center">
+                  <Sliders className="size-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">Prapemrosesan</span>
+                  <span className="text-[11px] text-muted-foreground">Grayscale 1200px</span>
                 </div>
-                <div className="hidden md:flex items-center justify-center text-muted-foreground">➔</div>
-                <div className="flex-1 p-3 rounded-lg border border-border/80 bg-background/50 flex flex-col items-center text-center gap-1.5">
-                  <Cpu className="size-5 text-purple-400" />
-                  <span className="font-semibold text-foreground">3. Tesseract OCR</span>
-                  <span className="text-[11px] text-muted-foreground">LSTM Text Recognition</span>
+                <div className="hidden items-center text-muted-foreground md:flex">→</div>
+                <div className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-3 text-center">
+                  <Cpu className="size-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">Tesseract OCR</span>
+                  <span className="text-[11px] text-muted-foreground">Pengenalan LSTM</span>
                 </div>
-                <div className="hidden md:flex items-center justify-center text-muted-foreground">➔</div>
-                <div className="flex-1 p-3 rounded-lg border border-border/80 bg-background/50 flex flex-col items-center text-center gap-1.5">
-                  <Workflow className="size-5 text-amber-400" />
-                  <span className="font-semibold text-foreground">4. Parser & Lookalike</span>
-                  <span className="text-[11px] text-muted-foreground">Fuzzy Levenshtein & Wilayah</span>
+                <div className="hidden items-center text-muted-foreground md:flex">→</div>
+                <div className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-3 text-center">
+                  <Workflow className="size-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">Parser</span>
+                  <span className="text-[11px] text-muted-foreground">Lookalike & wilayah</span>
                 </div>
-                <div className="hidden md:flex items-center justify-center text-muted-foreground">➔</div>
-                <div className="flex-1 p-3 rounded-lg border border-border/80 bg-background/50 flex flex-col items-center text-center gap-1.5">
-                  <Shield className="size-5 text-emerald-400" />
-                  <span className="font-semibold text-foreground">5. Blowfish Enkripsi</span>
-                  <span className="text-[11px] text-muted-foreground">Penyimpanan Aman di Neon DB</span>
+                <div className="hidden items-center text-muted-foreground md:flex">→</div>
+                <div className="flex flex-1 flex-col items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-3 text-center">
+                  <Shield className="size-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">Blowfish</span>
+                  <span className="text-[11px] text-muted-foreground">Ciphertext tersimpan</span>
                 </div>
               </div>
             </CardContent>
@@ -397,14 +370,14 @@ export function OcrAnalysisPage() {
           <div className="grid gap-6 lg:grid-cols-12">
             {/* Input & Skenario */}
             <div className="lg:col-span-5 space-y-4">
-              <Card className="border-border/60 bg-card/60">
+              <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold flex items-center justify-between">
-                    <span>Pilih Skenario Uji Coba</span>
-                    <Badge variant="secondary" className="text-[10px]">Interaktif</Badge>
+                  <CardTitle className="flex items-center justify-between text-sm font-semibold">
+                    <span>Pilih skenario uji coba</span>
+                    <Badge variant="secondary">Interaktif</Badge>
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Pilih contoh teks OCR untuk mengamati cara kerja parser dan normalisasi
+                    Pilih contoh teks OCR untuk mengamati cara parser menormalkan field.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -414,37 +387,41 @@ export function OcrAnalysisPage() {
                         key={c.id}
                         type="button"
                         onClick={() => handleSelectCase(c)}
-                        className={`w-full text-left p-2.5 rounded-lg border transition-all text-xs flex items-center justify-between gap-2 ${
+                        className={`flex w-full items-center justify-between gap-2 rounded-lg border p-2.5 text-left text-xs transition-colors ${
                           selectedCase.id === c.id
-                            ? "border-primary bg-primary/10 text-foreground font-medium"
-                            : "border-border/60 hover:bg-muted/50 text-muted-foreground"
+                            ? "border-primary/40 bg-primary/5 text-foreground"
+                            : "border-border/70 text-muted-foreground hover:bg-muted/50"
                         }`}
                       >
                         <div className="truncate">
-                          <p className="font-semibold text-foreground">{c.title}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">{c.description}</p>
+                          <p className="font-medium text-foreground">{c.title}</p>
+                          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{c.description}</p>
                         </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0">
+                        <Badge variant="outline" className="shrink-0 text-[10px]">
                           {c.badge}
                         </Badge>
                       </button>
                     ))}
                   </div>
 
-                  <div className="pt-2">
-                    <label className="text-xs font-semibold text-foreground mb-1 block">
-                      Teks Mentah OCR (Bisa Diedit Bebas):
+                  <div>
+                    <label
+                      htmlFor="ocr-raw-text"
+                      className="mb-1 block text-xs font-medium text-foreground"
+                    >
+                      Teks mentah OCR — dapat diedit
                     </label>
                     <textarea
+                      id="ocr-raw-text"
                       rows={9}
                       value={customText}
                       onChange={(e) => setCustomText(e.target.value)}
-                      className="w-full font-mono text-[11px] p-2.5 rounded-md border border-input bg-background/80 focus:ring-1 focus:ring-primary focus:outline-hidden"
+                      className="w-full rounded-md border border-input bg-card p-2.5 font-mono text-xs leading-relaxed focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
                     />
                   </div>
 
-                  <Button onClick={handleRunParser} className="w-full text-xs font-semibold gap-2">
-                    <Play className="size-3.5" /> Uji Parsing Sekarang
+                  <Button onClick={handleRunParser} className="w-full gap-2 text-xs font-medium">
+                    <Play className="size-3.5" /> Uji parsing
                   </Button>
                 </CardContent>
               </Card>
@@ -452,92 +429,94 @@ export function OcrAnalysisPage() {
 
             {/* Output Hasil Ekstraksi */}
             <div className="lg:col-span-7 space-y-4">
-              <Card className="border-border/60 bg-card/60">
+              <Card>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <CheckCircle2 className="size-4 text-emerald-400" /> Hasil Transformasi Data Terstruktur
-                    </CardTitle>
-                    <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 text-[10px]">
-                      100% Normalized
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                        <CheckCircle2 className="size-4 text-primary" /> Hasil transformasi data
+                      </CardTitle>
+                      <CardDescription className="mt-1 text-xs">
+                        Data setelah normalisasi label, koreksi lookalike, dan verifikasi wilayah.
+                      </CardDescription>
+                    </div>
+                    <Badge variant="default" className="shrink-0">
+                      Ternormalisasi
                     </Badge>
                   </div>
-                  <CardDescription className="text-xs">
-                    Data setelah melalui algoritma normalisasi label, lookalike mapping, dan verifikasi wilayah
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">NOMOR NIK (16 DIGIT)</span>
-                      <span className="font-semibold text-foreground font-mono text-sm">
-                        {parsedResult.data.nik || <span className="text-amber-400 font-sans italic">Tidak terbaca</span>}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Nomor NIK</span>
+                      <span className="font-mono text-sm font-medium tabular-nums text-foreground">
+                        {parsedResult.data.nik || <span className="font-sans text-muted-foreground italic">Tidak terbaca</span>}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">NAMA LENGKAP</span>
-                      <span className="font-semibold text-foreground truncate block">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Nama lengkap</span>
+                      <span className="block truncate text-sm font-medium text-foreground">
                         {parsedResult.data.nama || "-"}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">TEMPAT / TGL LAHIR</span>
-                      <span className="font-semibold text-foreground">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Tempat / tanggal lahir</span>
+                      <span className="text-sm font-medium text-foreground">
                         {parsedResult.data.tempatLahir || "-"}, {parsedResult.data.tanggalLahir || "-"}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">JENIS KELAMIN / GOL. DARAH</span>
-                      <span className="font-semibold text-foreground">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Jenis kelamin / gol. darah</span>
+                      <span className="text-sm font-medium text-foreground">
                         {parsedResult.data.jenisKelamin || "-"} (Gol. {parsedResult.data.golonganDarah || "-"})
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">PROVINSI</span>
-                      <span className="font-semibold text-foreground">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Provinsi</span>
+                      <span className="text-sm font-medium text-foreground">
                         {parsedResult.data.provinsi || "-"}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">KABUPATEN / KOTA</span>
-                      <span className="font-semibold text-foreground">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Kabupaten / kota</span>
+                      <span className="text-sm font-medium text-foreground">
                         {parsedResult.data.kabupatenKota || "-"}
                       </span>
                     </div>
 
-                    <div className="col-span-2 p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">ALAMAT LENGKAP & RT/RW</span>
-                      <span className="font-semibold text-foreground">
+                    <div className="col-span-2 rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Alamat & RT/RW</span>
+                      <span className="text-sm font-medium text-foreground">
                         {parsedResult.data.alamat || "-"} RT {parsedResult.data.rt || "-"} / RW {parsedResult.data.rw || "-"}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">KECAMATAN / KELURAHAN</span>
-                      <span className="font-semibold text-foreground">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Kecamatan / kelurahan</span>
+                      <span className="text-sm font-medium text-foreground">
                         Kec. {parsedResult.data.kecamatan || "-"} / Kel. {parsedResult.data.kelurahanDesa || "-"}
                       </span>
                     </div>
 
-                    <div className="p-2.5 rounded border border-border/60 bg-background/50">
-                      <span className="text-[10px] text-muted-foreground block font-mono">AGAMA / STATUS KAWIN</span>
-                      <span className="font-semibold text-foreground">
+                    <div className="rounded-md border border-border/70 bg-muted/20 p-2.5">
+                      <span className="block text-[11px] text-muted-foreground">Agama / status kawin</span>
+                      <span className="text-sm font-medium text-foreground">
                         {parsedResult.data.agama || "-"} / {parsedResult.data.statusPerkawinan || "-"}
                       </span>
                     </div>
                   </div>
 
                   {parsedResult.warnings.length > 0 && (
-                    <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2">
-                      <Info className="size-4 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold">Catatan Parser:</p>
-                        <ul className="list-disc list-inside">
+                    <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-2.5 text-xs text-foreground">
+                      <Info className="mt-0.5 size-4 shrink-0 text-warning" />
+                      <div className="space-y-1">
+                        <p className="font-medium">Catatan parser</p>
+                        <ul className="list-inside list-disc space-y-0.5 text-muted-foreground">
                           {parsedResult.warnings.map((w, i) => (
                             <li key={i}>{w}</li>
                           ))}
@@ -553,50 +532,51 @@ export function OcrAnalysisPage() {
 
         {/* TAB 3: TABEL LENGKAP ATURAN LOOKALIKE & NORMALISASI MULTI-KATEGORI */}
         <TabsContent value="rules" className="space-y-6">
-          <Card className="border-border/60 bg-card/60">
+          <Card>
             <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
                 <div>
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Layers className="size-4 text-primary" /> Kamus Lengkap Konversi Karakter Mirip & Fuzzy Matching ({filteredRules.length} Aturan)
+                  <CardTitle className="text-sm font-semibold">
+                    Kamus koreksi karakter ({filteredRules.length} aturan)
                   </CardTitle>
-                  <CardDescription className="text-xs">
-                    Seluruh matriks aturan penanganan ambiguitas optik OCR-B, normalisasi alfabet, dan perbaikan typo wilayah
+                  <CardDescription className="mt-1 text-xs">
+                    Matriks penanganan ambiguitas OCR-B, normalisasi alfabet, dan perbaikan typo
+                    wilayah.
                   </CardDescription>
                 </div>
 
                 {/* Search box */}
                 <input
                   type="text"
-                  placeholder="Cari target / input / output..."
+                  placeholder="Cari target, masukan, atau hasil…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="text-xs px-3 py-1.5 rounded-md border border-input bg-background/80 focus:ring-1 focus:ring-primary focus:outline-hidden max-w-xs"
+                  className="w-full max-w-xs rounded-md border border-input bg-card px-3 py-1.5 text-xs focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25"
                 />
               </div>
 
               {/* Filter Tabs / Badges */}
-              <div className="flex items-center gap-1.5 flex-wrap pt-3 border-t border-border/50">
-                <span className="text-[11px] text-muted-foreground flex items-center gap-1 mr-1">
-                  <Filter className="size-3" /> Kategori:
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-3">
+                <span className="mr-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Filter className="size-3" /> Kategori
                 </span>
                 {[
                   { id: "all", label: "Semua" },
                   { id: "nik", label: "Angka NIK" },
-                  { id: "letters", label: "Huruf Nama/Teks" },
-                  { id: "blood", label: "Gol. Darah" },
+                  { id: "letters", label: "Huruf nama" },
+                  { id: "blood", label: "Gol. darah" },
                   { id: "rtrw", label: "Format RT/RW" },
-                  { id: "labels", label: "Label Field KTP" },
-                  { id: "wilayah", label: "Typo Wilayah" },
+                  { id: "labels", label: "Label field" },
+                  { id: "wilayah", label: "Typo wilayah" },
                 ].map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
                     onClick={() => setActiveCategory(cat.id as LookalikeCategory)}
-                    className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                    className={`rounded px-2.5 py-1 text-xs transition-colors ${
                       activeCategory === cat.id
-                        ? "bg-primary text-primary-foreground font-semibold"
-                        : "bg-muted/50 hover:bg-muted text-muted-foreground"
+                        ? "bg-secondary font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-muted"
                     }`}
                   >
                     {cat.label}
@@ -606,17 +586,17 @@ export function OcrAnalysisPage() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
+                <table className="w-full border-collapse text-left text-xs">
                   <thead>
-                    <tr className="border-b border-border text-muted-foreground bg-muted/40 font-mono">
-                      <th className="p-2.5 font-semibold">Kategori</th>
-                      <th className="p-2.5 font-semibold">Target Bidang / Simbol</th>
-                      <th className="p-2.5 font-semibold">Karakter OCR Masukan</th>
-                      <th className="p-2.5 font-semibold">Hasil Normalisasi</th>
-                      <th className="p-2.5 font-semibold">Alasan / Konteks Pemrosesan</th>
+                    <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                      <th className="p-2.5 font-medium">Kategori</th>
+                      <th className="p-2.5 font-medium">Target</th>
+                      <th className="p-2.5 font-medium">Masukan OCR</th>
+                      <th className="p-2.5 font-medium">Normalisasi</th>
+                      <th className="p-2.5 font-medium">Konteks</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/40">
+                  <tbody className="divide-y divide-border/70">
                     {filteredRules.map((r, i) => (
                       <tr key={i} className="hover:bg-muted/20">
                         <td className="p-2.5">
@@ -625,8 +605,8 @@ export function OcrAnalysisPage() {
                           </Badge>
                         </td>
                         <td className="p-2.5 font-medium text-foreground">{r.target}</td>
-                        <td className="p-2.5 font-mono text-amber-400 bg-amber-500/5">{r.input}</td>
-                        <td className="p-2.5 font-mono font-bold text-emerald-400 bg-emerald-500/5">{r.output}</td>
+                        <td className="bg-muted/30 p-2.5 font-mono text-foreground">{r.input}</td>
+                        <td className="bg-muted/30 p-2.5 font-mono font-semibold text-foreground">{r.output}</td>
                         <td className="p-2.5 text-muted-foreground">{r.note}</td>
                       </tr>
                     ))}

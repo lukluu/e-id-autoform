@@ -40,7 +40,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
             {camera.status === "requesting" ? "Membuka kamera..." : "Kamera belum aktif"}
           </div>
         )}
-        <div className="pointer-events-none absolute inset-6 rounded-lg border-2 border-dashed border-primary/60" />
+        <div className="pointer-events-none absolute inset-6 rounded-lg border border-dashed border-primary/50" />
       </div>
 
       {camera.error && (
@@ -50,12 +50,13 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
             <AlertDescription className="text-xs">{camera.error}</AlertDescription>
           </Alert>
           {camera.status === "unavailable" && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs space-y-2">
-              <p className="text-amber-800 dark:text-amber-300 font-medium">
-                💡 Browser memblokir live webcam karena koneksi HTTP non-localhost.
+            <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
+              <p className="font-medium text-foreground">
+                Browser memblokir webcam langsung pada koneksi HTTP non-localhost.
               </p>
-              <p className="text-slate-600 dark:text-slate-400 text-[11px]">
-                Anda tetap dapat mengambil foto KTP langsung menggunakan Kamera Bawaan HP melalui tombol di bawah.
+              <p className="text-[11px] text-muted-foreground">
+                Anda tetap dapat mengambil foto KTP dengan kamera bawaan ponsel melalui tombol di
+                bawah.
               </p>
             </div>
           )}

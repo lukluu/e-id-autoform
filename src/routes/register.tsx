@@ -13,8 +13,8 @@ function RegisterPageWrapper() {
     <AppLayout activeTab="register">
       <RegisterPage
         onNavigate={(tab) => {
-          if (tab === "dashboard" || tab === "/") void navigate({ to: "/" });
-          else if (tab === "login" || tab === "/login") void navigate({ to: "/login" });
+          if (tab === "dashboard") void navigate({ to: "/" });
+          else if (tab === "login") void navigate({ to: "/login" });
         }}
       />
     </AppLayout>

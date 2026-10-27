@@ -18,7 +18,7 @@ interface CameraSelectorProps {
 export function CameraSelector({ devices, activeDeviceId, onSelect }: CameraSelectorProps) {
   return (
     <div className="space-y-1.5">
-      <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+      <Label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
         <Video className="size-3.5" /> Pilih kamera
       </Label>
       <Select value={activeDeviceId ?? ""} onValueChange={onSelect}>
